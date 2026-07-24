@@ -1,20 +1,17 @@
-import "dotenv/config";
-import {app} from "./app";
+import {app} from './app';
+import {env} from './config/env';
 
-const port = Number(process.env.PORT) || 3000;
-
-const server = app.listen(port, () => {
-    console.log(`Barbershop backend is running at http://localhost:${port}`);
+const server = app.listen(env.port, ()=>{
+    console.log(`Server is running on port ${env.port}`);
 });
 
-const shutdown = (signal: string): void => {
-    console.log(`${signal} received. Closing HTTP server...`);
-
+function shutdown(signal: string) : void {
+    console.log(`Received ${signal}. Shutting down server...`);
     server.close(() => {
-        console.log("HTTP server closed.");
+        console.log("Server closed.");
         process.exit(0);
     });
-};
+}
 
 process.on("SIGINT", () => shutdown("SIGINT"));
 process.on("SIGTERM", () => shutdown("SIGTERM"));
