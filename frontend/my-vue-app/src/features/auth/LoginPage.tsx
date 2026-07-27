@@ -18,80 +18,70 @@ export default function LoginPage() {
     };
 
     const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:3000/api";
+    const BACKEND_BASE_URL = import.meta.env.VITE_BACKEND_BASE_URL ?? "http://localhost:3000";
+    
     const [showPassword, setShowPassword] = useState(false);
     const [rememberMe, setRememberMe] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [errorMessage, setErrorMessage] = useState("");
 
-  async function handleSubmit(
-  event: SubmitEvent<HTMLFormElement>,
-) {
-  event.preventDefault();
-
-  const form = event.currentTarget;
-  const formData = new FormData(form);
-
-  const email = String(
-    formData.get("email") ?? "",
-  ).trim();
-
-  const password = String(
-    formData.get("password") ?? "",
-  );
-
-  setIsSubmitting(true);
-  setErrorMessage("");
-
-  try {
-    const response = await fetch(
-      `${API_BASE_URL}/auth/login`,
-      {
-        method: "POST",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email,
-          password,
-        }),
-      },
-    );
-
-    let result: LoginResponse;
-
+    function handleGoogleLogin() {
+      setErrorMessage("");
+      window.location.assign(`${BACKEND_BASE_URL}/auth/google`);
+    }
+  async function handleSubmit(event: SubmitEvent<HTMLFormElement>,) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+    const email = String(formData.get("email") ?? "",).trim();
+    const password = String(formData.get("password") ?? "",);
+    setIsSubmitting(true);
+    setErrorMessage("");
     try {
-      result =
-        (await response.json()) as LoginResponse;
-    } catch {
+      const response = await fetch(`${API_BASE_URL}/auth/login`,
+        {
+          method: "POST",
+          credentials: "include",
+          headers: {"Content-Type": "application/json",},
+          body: JSON.stringify({
+            email,
+            password,
+          }),
+        },
+      );
+
+      let result: LoginResponse;
+      try {
+        result =(await response.json()) as LoginResponse;
+      } catch {
+        window.alert("Kết nối Supabase thất bại.");
+        return;
+      }
+
+      if (
+        response.ok &&
+        result.code === "login_success"
+      ) {
+        window.alert("Đăng nhập thành công.");
+        return;
+      }
+
+      if (
+        response.status === 401 ||
+        result.code === "invalid_credentials"
+      ) {
+        window.alert("Sai email hoặc mật khẩu.");
+        return;
+      }
+
       window.alert("Kết nối Supabase thất bại.");
-      return;
+    } catch (error) {
+      console.error("Login request failed:", error);
+
+      window.alert("Kết nối Supabase thất bại.");
+    } finally {
+      setIsSubmitting(false);
     }
-
-    if (
-      response.ok &&
-      result.code === "login_success"
-    ) {
-      window.alert("Đăng nhập thành công.");
-      return;
-    }
-
-    if (
-      response.status === 401 ||
-      result.code === "invalid_credentials"
-    ) {
-      window.alert("Sai email hoặc mật khẩu.");
-      return;
-    }
-
-    window.alert("Kết nối Supabase thất bại.");
-  } catch (error) {
-    console.error("Login request failed:", error);
-
-    window.alert("Kết nối Supabase thất bại.");
-  } finally {
-    setIsSubmitting(false);
-  }
 }
 
   return (
@@ -225,7 +215,7 @@ export default function LoginPage() {
               <span />
             </div>
 
-            <button className="google-button" type="button">
+            <button className="google-button" type="button" onClick={handleGoogleLogin}>
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M21.6 12.23c0-.71-.06-1.4-.18-2.07H12v3.92h5.39a4.61 4.61 0 0 1-2 3.02v2.54h3.24c1.9-1.75 2.97-4.33 2.97-7.41Z" />
                 <path d="M12 22c2.7 0 4.98-.9 6.63-2.36l-3.24-2.54c-.9.6-2.05.96-3.39.96-2.61 0-4.82-1.76-5.61-4.13H3.04v2.61A10 10 0 0 0 12 22Z" />

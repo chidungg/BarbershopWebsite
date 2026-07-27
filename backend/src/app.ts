@@ -1,11 +1,11 @@
 import cors from "cors";
 import express,{type NextFunction, type Request, type Response} from "express";
 import { env } from "./config/env";
-
 import {createSupabaseAuthClient, supabase} from "./lib/supabase";
+import { authRouter } from "./modules/auth/auth.route";
+
 
 export const app = express();
-
 
 app.disable("x-powered-by");
 
@@ -20,6 +20,7 @@ app.use(
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(authRouter);
 
 app.get("/", (_request: Request, respond: Response)=>{
     respond.status(200).json({
@@ -132,6 +133,15 @@ app.post("/api/auth/login", async (request: Request, respond: Response)=>{
         });
     }
 });
+
+app.use((request: Request, response: Response) => {
+    return response.status(404).json({
+        success: false,
+        code: "not_found",
+        message: "Route not found",
+    });
+});
+
 app.use((request: Request, respond: Response, )=>{
     respond.status(404).json({
         success: false,
