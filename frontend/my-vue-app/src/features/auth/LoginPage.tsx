@@ -9,7 +9,8 @@ export default function LoginPage() {
         | "login_success"
         | "invalid_credentials"
         | "supabase_service_unavailable"
-        | "missing_credentials";
+        | "missing_credentials"
+        | "email_not_confirmed";
     message: string;
     data?: {
         id: string;
@@ -54,34 +55,28 @@ export default function LoginPage() {
       try {
         result =(await response.json()) as LoginResponse;
       } catch {
-        window.alert("Kết nối Supabase thất bại.");
+        window.alert("Fail to connect to Supabase.");
         return;
       }
 
-      if (
-        response.ok &&
-        result.code === "login_success"
-      ) {
-        window.alert("Đăng nhập thành công.");
+      if ( response.ok && result.code === "login_success") {
+        window.alert("Login successfully.");
         return;
       }
-
-      if (
-        response.status === 401 ||
-        result.code === "invalid_credentials"
-      ) {
-        window.alert("Sai email hoặc mật khẩu.");
+      if ( response.status === 401 || result.code === "invalid_credentials") {
+        window.alert("Incorrect email or password.");
         return;
       }
-
-      window.alert("Kết nối Supabase thất bại.");
+      if ( response.status === 400 || result.code === "email_not_confirmed") {
+        window.alert("You haven't confirmed your email yet. Please check your gmail");
+        return;
+      }
+      window.alert("Internal error.");
     } catch (error) {
       console.error("Login request failed:", error);
-
-      window.alert("Kết nối Supabase thất bại.");
-    } finally {
-      setIsSubmitting(false);
-    }
+      window.alert("Internal error.");
+    } finally { setIsSubmitting(false);
+  }
 }
 
   return (
@@ -227,7 +222,8 @@ export default function LoginPage() {
           </form>
 
           <p className="signup-copy">
-            New to Gentleman's Barbershop? <a href="/register">Create an account</a>
+            New to Gentleman's Barbershop? 
+            <a href="/register">Create an account</a>
           </p>
         </div>
       </section>

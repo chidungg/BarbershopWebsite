@@ -1,8 +1,9 @@
 import cors from "cors";
 import express,{type NextFunction, type Request, type Response} from "express";
 import { env } from "./config/env";
-import {createSupabaseAuthClient, supabase} from "./lib/supabase";
+import { supabase} from "./lib/supabase";
 import { authRouter } from "./modules/auth/auth.route";
+import cookieParser from "cookie-parser";
 
 
 export const app = express();
@@ -17,8 +18,8 @@ app.use(
     })
 );
 
-
-app.use(express.json());
+app.use(express.json());;
+app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
 app.use(authRouter);
 
@@ -47,100 +48,7 @@ app.get("/api/health", async (_request: Request, respond: Response, next: NextFu
     }
 });
 
-app.post("/api/auth/login", async (request: Request, respond: Response)=>{
-    const body = request.body as{
-        email?: unknown;
-        password?: unknown;
-    };
-    const email = typeof body.email === "string" ? body.email.trim() : "";
-    const password = typeof body.password === "string" ? body.password.trim() : "";
-    if (!email || !password) {
-        return respond.status(400).json({
-            success: false,
-            code: "missing_credentials",
-            message: "Email and password are required"
-        });
-    }
-    try {
-        const supabaseAuthClient = createSupabaseAuthClient();
-        const { data, error } = await supabaseAuthClient.auth.signInWithPassword({
-            email,
-            password
-        });
-        if (error) {
-            console.error("Login error:", {
-                name: error.name,
-                code: error.code,
-                message: error.message,
-                status: error.status,
-            }
-            );
-            if(error.code === "invalid_credentials") {
-                return respond.status(401).json({
-                    success: false,
-                    code: "invalid_credentials",
-                    message: "Invalid email or password"
-                });
-            }
-            return respond.status(503).json({
-                success: false,
-                code: "supabase_service_unavailable",
-                message: "Supabase service unavailable. Please try again later.",
-            });
-        }
-        
-        
-        if (!data.user|| !data.session) {
-            return respond.status(503).json({
-                success: false,
-                code: "supabase_service_unavailable",
-                message: "Supabase service unavailable. Please try again later."
-            });
-        }
 
-        const isProduction = process.env.NODE_ENV === "production";
-        const cookieOptions = {
-            httpOnly: true,
-            secure: isProduction,
-            sameSite: "lax" as const,
-            path: "/",
-        };
-        respond.cookie("sb-access-token", data.session.access_token, {
-            ...cookieOptions,
-            maxAge: data.session.expires_in * 1000,
-        });
-        respond.cookie("sb-refresh-token", data.session.refresh_token, {
-            ...cookieOptions,
-            maxAge: 60 * 60 * 24 * 30 * 1000, // 30 days
-        });
-        return respond.status(200).json({
-            success: true,
-            code: "login_success",
-            message: "Login successful",
-            data:{
-                id: data.user.id,
-                email: data.user.email,
-            }
-        });
-
-
-    } catch (error) {
-        console.error("Cannot connect to Supabase Authentication:", error);
-        return respond.status(503).json({
-            success: false,
-            code: "supabase_service_unavailable",
-            message: "Supabase service unavailable. Please try again later.",
-        });
-    }
-});
-
-app.use((request: Request, response: Response) => {
-    return response.status(404).json({
-        success: false,
-        code: "not_found",
-        message: "Route not found",
-    });
-});
 
 app.use((request: Request, respond: Response, )=>{
     respond.status(404).json({

@@ -18,10 +18,9 @@ if (!Number.isInteger(port) || port <= 0) {
 
 export const env = {
   port,
-  frontendUrl: process.env.FRONTEND_URL ?? "http://localhost:5173",
-  backendUrl: process.env.BACKEND_URL ?? `http://localhost:${port}`,
+  frontendUrl: process.env.FRONTEND_URL?.trim() || "http://localhost:5173",
+  backendUrl: process.env.BACKEND_URL?.trim() || `http://localhost:${port}`,
   supabaseUrl: getRequiredEnvironmentVariable("SUPABASE_URL"),
-  supabasePublishableKey: getRequiredEnvironmentVariable(
-    "SUPABASE_PUBLISHABLE_KEY",
-  ),
+  supabasePublishableKey: getRequiredEnvironmentVariable("SUPABASE_PUBLISHABLE_KEY"),
+  supabaseServiceRoleKey: getRequiredEnvironmentVariable("SUPABASE_SERVICE_ROLE_KEY"),
 };
