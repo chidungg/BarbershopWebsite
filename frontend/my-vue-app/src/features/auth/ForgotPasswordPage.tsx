@@ -19,12 +19,6 @@ function generateCaptcha(length = 6) {
   ).join("");
 }
 
-function wait(milliseconds: number) {
-  return new Promise<void>((resolve) => {
-    window.setTimeout(resolve, milliseconds);
-  });
-}
-
 export default function ForgotPasswordPage() {
   const navigate = useNavigate();
   const [step, setStep] = useState<ForgotPasswordStep>("request");

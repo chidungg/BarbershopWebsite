@@ -57,3 +57,20 @@ export type VerifyOtpResponse = {
     email?: string;
   };
 };
+
+export type ResetPasswordResponse = {
+  success: boolean;
+  code:
+    | "password_reset_success"
+    | "missing_password_fields"
+    | "weak_password"
+    | "password_mismatch"
+    | "recovery_session_missing"
+    | "recovery_session_expired"
+    | "reauthentication_needed"
+    | "same_password"
+    | "password_update_failed"
+    | "invalid_password_update_response"
+    | "password_reset_internal_error";
+  message: string;
+};
