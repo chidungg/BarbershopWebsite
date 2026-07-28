@@ -566,9 +566,7 @@ authRouter.get("/auth/google/callback", async (request: Request, response: Respo
 // -----------------------------FORGOT PASSWORD-----------------------------------
 
 authRouter.post("/api/auth/forgot-password/check-email", async (request: Request, response: Response) => {
-    const body = request.body as {
-      email?: unknown;
-    };
+    const body = request.body as ForgotPasswordCheckEmailBody;
 
     const email =
       typeof body.email === "string"

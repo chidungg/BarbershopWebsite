@@ -89,6 +89,9 @@ select {
   letter-spacing: 0.025em;
   line-height: 0.9;
 }
+.site-header .site-brand span {
+  color: #d6b487;
+}
 .site-brand small {
   font-family: 'Inter', sans-serif;
   font-size: 9px;

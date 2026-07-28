@@ -16,3 +16,7 @@ export type AuthSession = {
   refresh_token: string;
   expires_in: number;
 };
+
+export type ForgotPasswordCheckEmailBody = {
+  email?: unknown;
+};
