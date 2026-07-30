@@ -1,6 +1,6 @@
 import { useState, type SubmitEvent } from "react";
 import { useNavigate } from "react-router-dom";
-import "../../assets/SignupPage.css";
+import "./SignupPage.css";
 
 const CAPTCHA_CHARACTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 

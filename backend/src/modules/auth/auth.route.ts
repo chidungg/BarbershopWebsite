@@ -4,6 +4,7 @@ import { env } from "../../config/env";
 import { createSupabaseOAuthClient } from "../../lib/supabase-oauth";
 import { LoginRequestBody, SignupRequestBody, AuthSession, ForgotPasswordCheckEmailBody  } from "./auth.type";
 import { createSupabaseAuthClient, createSupabaseAdminClient} from "../../lib/supabase";
+import { getRoleByEmail, getRoleByUser } from "../../middlewares/auth.middleware";
 
 export const authRouter = Router();
 
@@ -45,104 +46,174 @@ function clearSessionCookies(response: Response) {
 }
 
 // -----------------------------------LOGIN--------------------------------------
-authRouter.post("/api/auth/login", async (request: Request, respond: Response)=>{
-    const body = request.body as{
-        email?: unknown;
-        password?: unknown;
-    };
-    const email = typeof body.email === "string" ? body.email.trim() : "";
-    const password = typeof body.password === "string" ? body.password : "";
-    if (!email || !password) {
-        return respond.status(400).json({
-            success: false,
-            code: "missing_credentials",
-            message: "Email and password are required"
+authRouter.post("/api/auth/login", async (request: Request, response: Response) => {
+  const body = request.body as LoginRequestBody;
+  const email =
+    typeof body.email === "string"
+      ? body.email.trim().toLowerCase()
+      : "";
+  const password =
+    typeof body.password === "string"
+      ? body.password
+      : "";
+
+  if (!email || !password) {
+    return response.status(400).json({
+      success: false,
+      code: "missing_credentials",
+      message: "Email and password are required",
+    });
+  }
+
+  try {
+    const supabaseAuthClient = createSupabaseAuthClient();
+    const { data, error } =
+      await supabaseAuthClient.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+    if (error) {
+      console.error("Login error:", {
+        name: error.name,
+        code: error.code,
+        message: error.message,
+        status: error.status,
+      });
+
+      if (error.code === "email_not_confirmed") {
+        return response.status(403).json({
+          success: false,
+          code: "email_not_confirmed",
+          message: "Please confirm your email address before signing in",
         });
+      }
+
+      if (error.code === "invalid_credentials") {
+        return response.status(401).json({
+          success: false,
+          code: "invalid_credentials",
+          message: "Invalid email or password",
+        });
+      }
+
+      return response.status(error.status ?? 502).json({
+        success: false,
+        code: "supabase_login_failed",
+        message:
+          process.env.NODE_ENV === "development"
+            ? error.message
+            : "Supabase could not process the login request",
+      });
     }
+
+    if (!data.user || !data.session) {
+      return response.status(503).json({
+        success: false,
+        code: "supabase_service_unavailable",
+        message: "Supabase service unavailable. Please try again later.",
+      });
+    }
+
+    const userEmail = data.user.email?.trim().toLowerCase();
+
+    if (!userEmail) {
+      return response.status(403).json({
+        success: false,
+        code: "user_email_not_found",
+        message: "The authenticated account does not have an email",
+      });
+    }
+
+    let role;
+
     try {
-        const supabaseAuthClient = createSupabaseAuthClient();
-        const { data, error } = await supabaseAuthClient.auth.signInWithPassword({
-            email,
-            password
-        });
-        if (error) {
-            console.error("Login error:", {
-            name: error.name,
-            code: error.code,
-            message: error.message,
-            status: error.status,
-        });
-
-        if (error.code === "email_not_confirmed") {
-            return respond.status(403).json({
-            success: false,
-            code: "email_not_confirmed",
-            message: "Please confirm your email address before signing in",
-            });
-        }
-
-        if (error.code === "invalid_credentials") {
-            return respond.status(401).json({
-            success: false,
-            code: "invalid_credentials",
-            message: "Invalid email or password",
-            });
-        }
-
-        return respond.status(error.status ?? 502).json({
-            success: false,
-            code: "supabase_login_failed",
-            message:
-            process.env.NODE_ENV === "development"
-                ? error.message
-                : "Supabase could not process the login request",
-        });
-        }
-        
-        
-        if (!data.user|| !data.session) {
-            return respond.status(503).json({
-                success: false,
-                code: "supabase_service_unavailable",
-                message: "Supabase service unavailable. Please try again later."
-            });
-        }
-
-        const isProduction = process.env.NODE_ENV === "production";
-        const cookieOptions = {
-            httpOnly: true,
-            secure: isProduction,
-            sameSite: "lax" as const,
-            path: "/",
-        };
-        respond.cookie("sb-access-token", data.session.access_token, {
-            ...cookieOptions,
-            maxAge: data.session.expires_in * 1000,
-        });
-        respond.cookie("sb-refresh-token", data.session.refresh_token, {
-            ...cookieOptions,
-            maxAge: 60 * 60 * 24 * 30 * 1000, // 30 days
-        });
-        return respond.status(200).json({
-            success: true,
-            code: "login_success",
-            message: "Login successful",
-            data:{
-                id: data.user.id,
-                email: data.user.email,
-            }
-        });
-
-
+      role = await getRoleByEmail(userEmail);
     } catch (error) {
-        console.error("Cannot connect to Supabase Authentication:", error);
-        return respond.status(503).json({
-            success: false,
-            code: "supabase_service_unavailable",
-            message: "Supabase service unavailable. Please try again later.",
-        });
+      console.error("Role lookup failed during login:", error);
+
+      return response.status(502).json({
+        success: false,
+        code: "role_lookup_failed",
+        message: "Unable to retrieve the account role",
+      });
     }
+
+    if (!role) {
+      return response.status(403).json({
+        success: false,
+        code: "user_role_not_found",
+        message: "This account does not have a valid role",
+      });
+    }
+
+    setSessionCookies(response, data.session);
+
+    return response.status(200).json({
+      success: true,
+      code: "login_success",
+      message: "Login successful",
+      data: {
+        id: data.user.id,
+        email: userEmail,
+        role,
+        redirectTo: role === "admin" ? "/administrator" : "/",
+      },
+    });
+  } catch (error) {
+    console.error("Cannot connect to Supabase Authentication:", error);
+
+    return response.status(503).json({
+      success: false,
+      code: "supabase_service_unavailable",
+      message: "Supabase service unavailable. Please try again later.",
+    });
+  }
 });
+
+authRouter.get(
+  "/api/auth/me",
+  getRoleByUser,
+  (request: Request, response: Response) => {
+    const authUser = request.authUser;
+
+    if (!authUser) {
+      return response.status(401).json({
+        success: false,
+        code: "authentication_required",
+        message: "Authentication is required",
+      });
+    }
+
+    return response.status(200).json({
+      success: true,
+      code: "current_user_success",
+      data: {
+        id: authUser.id,
+        email: authUser.email,
+        role: authUser.role,
+        redirectTo:
+          authUser.role === "admin"
+            ? "/administrator"
+            : "/",
+      },
+    });
+  },
+);
+
+authRouter.post(
+  "/api/auth/logout",
+  (_request: Request, response: Response) => {
+    clearSessionCookies(response);
+
+    return response.status(200).json({
+      success: true,
+      code: "logout_success",
+      message: "Logged out successfully",
+    });
+  },
+);
+
 // -----------------------------------SIGNUP-------------------------------------
 async function findAuthUserByEmail(email: string) {
   const adminClient = createSupabaseAdminClient();
@@ -527,30 +598,42 @@ authRouter.get("/auth/google/callback", async (request: Request, response: Respo
         );
       }
 
-      const isProduction = process.env.NODE_ENV === "production";
-      const cookieOptions = {
-        httpOnly: true,
-        secure: isProduction,
-        sameSite: "lax" as const,
-        path: "/",
-      };
-      response.cookie("sb-access-token", data.session.access_token, {
-        ...cookieOptions,
-        maxAge: data.session.expires_in * 1000,
-      });
+      const userEmail = data.user.email?.trim().toLowerCase();
 
-      response.cookie("sb-refresh-token", data.session.refresh_token, {
-        ...cookieOptions,
-        maxAge: 30 * 24 * 60 * 60 * 1000,
-      });
+      if (!userEmail) {
+        return response.redirect(
+          302,
+          buildFrontendRedirect("authError", "user_email_not_found"),
+        );
+      }
+
+      const role = await getRoleByEmail(userEmail);
+
+      if (!role) {
+        return response.redirect(
+          302,
+          buildFrontendRedirect("authError", "user_role_not_found"),
+        );
+      }
+
+      setSessionCookies(response, data.session);
+
       console.log("Google OAuth login successful:", {
         userId: data.user.id,
-        email: data.user.email,
+        email: userEmail,
+        role,
       });
-      return response.redirect(
-        302,
-        buildFrontendRedirect("authSuccess", "google_login_success"),
+
+      const redirectUrl = new URL(
+        role === "admin" ? "/administrator" : "/",
+        env.frontendUrl,
       );
+      redirectUrl.searchParams.set(
+        "authSuccess",
+        "google_login_success",
+      );
+
+      return response.redirect(302, redirectUrl.toString());
     } catch (error) {
       console.error("Google OAuth callback exception:", error);
       return response.redirect(

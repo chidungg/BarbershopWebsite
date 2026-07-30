@@ -1,5 +1,6 @@
 import { useState, type SubmitEvent } from "react";
-import "../../assets/LoginPage.css";
+import "./LoginPage.css";
+import { useNavigate } from "react-router-dom";
 
 
 export default function LoginPage() {
@@ -9,15 +10,21 @@ export default function LoginPage() {
         | "login_success"
         | "invalid_credentials"
         | "supabase_service_unavailable"
+        | "supabase_login_failed"
         | "missing_credentials"
-        | "email_not_confirmed";
+        | "email_not_confirmed"
+        | "user_email_not_found"
+        | "user_role_not_found"
+        | "role_lookup_failed";
     message: string;
     data?: {
         id: string;
         email?: string;
+        role?: "admin" | "barber" | "user";
+        redirectTo?: string;
     };
     };
-
+    const navigate = useNavigate();
     const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:3000/api";
     const BACKEND_BASE_URL = import.meta.env.VITE_BACKEND_BASE_URL ?? "http://localhost:3000";
     
@@ -30,7 +37,7 @@ export default function LoginPage() {
       setErrorMessage("");
       window.location.assign(`${BACKEND_BASE_URL}/auth/google`);
     }
-  async function handleSubmit(event: SubmitEvent<HTMLFormElement>,) {
+  async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = event.currentTarget;
     const formData = new FormData(form);
@@ -59,19 +66,45 @@ export default function LoginPage() {
         return;
       }
 
-      if ( response.ok && result.code === "login_success") {
-        window.alert("Login successfully.");
+      if (response.ok && result.code === "login_success") {
+        const role = result.data?.role;
+
+        if (!role) {
+          window.alert("The backend did not return an account role.");
+          return;
+        }
+
+        const destination =
+          result.data?.redirectTo ??
+          (role === "admin" ? "/administrator" : "/");
+
+        navigate(destination, { replace: true });
         return;
       }
-      if ( response.status === 401 || result.code === "invalid_credentials") {
+      if (
+        response.status === 401 ||
+        result.code === "invalid_credentials"
+      ) {
         window.alert("Incorrect email or password.");
         return;
       }
-      if ( response.status === 400 || result.code === "email_not_confirmed") {
-        window.alert("You haven't confirmed your email yet. Please check your gmail");
+
+      if (result.code === "email_not_confirmed") {
+        window.alert(
+          "You haven't confirmed your email yet. Please check your Gmail.",
+        );
         return;
       }
-      window.alert("Internal error.");
+
+      if (
+        result.code === "user_role_not_found" ||
+        result.code === "role_lookup_failed"
+      ) {
+        window.alert(result.message);
+        return;
+      }
+
+      window.alert(result.message || "Internal error.");
     } catch (error) {
       console.error("Login request failed:", error);
       window.alert("Internal error.");

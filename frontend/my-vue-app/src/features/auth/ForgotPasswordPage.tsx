@@ -1,6 +1,6 @@
 import { useState, type SubmitEvent } from "react";
 import { Link,useNavigate } from "react-router-dom";
-import "../../assets/ForgotPasswordPage.css";
+import "./ForgotPasswordPage.css";
 import type {SendOtpResponse, ForgotPasswordStep ,StatusMessage, EmailLookupState, CheckEmailResponse, VerifyOtpResponse, ResetPasswordResponse} from "./auth.type"
 
 
