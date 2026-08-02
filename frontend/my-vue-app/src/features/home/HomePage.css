@@ -39,88 +39,6 @@ select {
   width: min(100% - 80px, 1240px);
   margin-inline: auto;
 }
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
-}
-
-.site-header {
-  position: fixed;
-  z-index: 10;
-  top: 0;
-  left: 0;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  min-height: 112px;
-  padding: 16px 4.5%;
-  color: #fff;
-  background: rgba(23, 23, 23, 0.5);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.16);
-  box-shadow: 0 5px 22px rgba(0, 0, 0, 0.18);
-  backdrop-filter: blur(12px);
-}
-.site-brand {
-  display: inline-flex;
-  align-items: center;
-  gap: 12px;
-  color: inherit;
-  text-decoration: none;
-}
-.site-brand img {
-  width: 75px;
-  height: 75px;
-  object-fit: contain;
-}
-.site-brand span {
-  display: grid;
-  gap: 5px;
-  font-family: 'Cormorant Garamond', serif;
-  font-size: 25px;
-  font-weight: 700;
-  letter-spacing: 0.025em;
-  line-height: 0.9;
-}
-.site-header .site-brand span {
-  color: #d6b487;
-}
-.site-brand small {
-  font-family: 'Inter', sans-serif;
-  font-size: 9px;
-  font-weight: 600;
-  letter-spacing: 0.27em;
-}
-.site-nav {
-  display: flex;
-  align-items: center;
-  gap: 32px;
-  margin-left: 42px;
-}
-.site-nav a,
-.sign-in-link {
-  color: inherit;
-  font-size: 15px;
-  font-weight: 700;
-  text-decoration: none;
-  transition: color 0.2s ease;
-}
-.site-nav a:hover,
-.sign-in-link:hover {
-  color: #deb77d;
-}
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: 24px;
-}
 .button {
   display: inline-flex;
   align-items: center;
@@ -159,10 +77,6 @@ select {
   color: #fff;
   background: var(--charcoal);
 }
-.menu-button {
-  display: none;
-}
-
 .hero-carousel,
 .hero-carousel .carousel,
 .hero-carousel .carousel-inner,
@@ -170,8 +84,51 @@ select {
   min-height: min(850px, 100vh);
 }
 .hero-carousel {
+  position: relative;
   color: #fff;
   background: #0c0b09;
+}
+
+.home-data-alert {
+  position: fixed;
+  z-index: 50;
+  top: 110px;
+  left: 50%;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  width: min(calc(100% - 32px), 620px);
+  padding: 14px 18px;
+  color: #fff;
+  background: #812f2f;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.22);
+  font-size: 13px;
+  transform: translateX(-50%);
+}
+
+.home-data-alert span {
+  flex: 1;
+}
+
+.home-data-alert button {
+  padding: 7px 12px;
+  color: #fff;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  font-weight: 700;
+}
+
+.home-data-loading {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #d8b57e;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 .hero-carousel .carousel-item {
   position: relative;
@@ -538,20 +495,10 @@ select {
   display: grid;
   place-items: center;
   color: rgba(255, 255, 255, 0.24);
-  background-image:
-    linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.4)),
-    url('/images/carousel/signature-cut.png');
+  background-color: #27231f;
   background-position: 70% center;
   background-size: cover;
   filter: grayscale(1) contrast(1.08);
-}
-.barber-card__portrait--2 {
-  background-position: 92% center;
-  filter: grayscale(1) sepia(0.2) contrast(1.15);
-}
-.barber-card__portrait--3 {
-  background-position: 61% center;
-  filter: grayscale(1) sepia(0.1) contrast(1.2);
 }
 .barber-card__portrait span {
   padding: 5px 8px;
@@ -773,14 +720,6 @@ select {
 }
 
 @media (max-width: 1100px) {
-  .site-nav {
-    gap: 18px;
-    margin-left: 20px;
-  }
-  .site-nav a,
-  .sign-in-link {
-    font-size: 13px;
-  }
   .page-shell {
     width: min(100% - 56px, 1240px);
   }
@@ -814,61 +753,6 @@ select {
   }
   .page-shell {
     width: min(100% - 40px, 1240px);
-  }
-  .site-header {
-    min-height: 91px;
-    padding: 10px 20px;
-  }
-  .site-brand img {
-    width: 63px;
-    height: 63px;
-  }
-  .site-brand span {
-    font-size: 20px;
-  }
-  .site-brand small {
-    font-size: 7px;
-  }
-  .header-actions {
-    gap: 14px;
-  }
-  .header-actions .button {
-    display: none;
-  }
-  .menu-button {
-    display: grid;
-    gap: 5px;
-    width: 42px;
-    height: 42px;
-    padding: 10px;
-    background: transparent;
-    border: 1px solid rgba(255, 255, 255, 0.45);
-    cursor: pointer;
-  }
-  .menu-button > span:not(.sr-only) {
-    height: 1px;
-    background: #fff;
-  }
-  .site-nav {
-    position: absolute;
-    top: 91px;
-    right: 0;
-    left: 0;
-    display: none;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0;
-    margin: 0;
-    padding: 12px 20px 20px;
-    background: #1a1816;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-  }
-  .site-nav.is-open {
-    display: flex;
-  }
-  .site-nav a {
-    padding: 13px 4px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   }
   .hero-carousel,
   .hero-carousel .carousel,
@@ -920,16 +804,6 @@ select {
 @media (max-width: 560px) {
   .page-shell {
     width: min(100% - 32px, 1240px);
-  }
-  .site-brand img {
-    width: 55px;
-    height: 55px;
-  }
-  .site-brand span {
-    font-size: 16px;
-  }
-  .sign-in-link {
-    font-size: 12px;
   }
   .hero-carousel,
   .hero-carousel .carousel,

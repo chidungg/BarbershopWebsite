@@ -556,6 +556,11 @@ authRouter.get("/auth/google", async (request: Request, response: Response) => {
     return response.redirect(302, data.url);
   } catch (error) {
     console.error("Google OAuth start exception:", error);
+
+    if (response.headersSent) {
+      return;
+    }
+
     return response.redirect(
       302,
       buildFrontendRedirect("authError", "google_oauth_start_failed"),
@@ -636,6 +641,11 @@ authRouter.get("/auth/google/callback", async (request: Request, response: Respo
       return response.redirect(302, redirectUrl.toString());
     } catch (error) {
       console.error("Google OAuth callback exception:", error);
+
+      if (response.headersSent) {
+        return;
+      }
+
       return response.redirect(
         302,
         buildFrontendRedirect(

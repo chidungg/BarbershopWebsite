@@ -5,6 +5,7 @@ import { env } from "./config/env";
 import { supabase } from "./lib/supabase";
 import adminRouter from "./modules/admin/adminRoute";
 import { authRouter } from "./modules/auth/auth.route";
+import { publicRouter } from "./modules/public/public.route";
 export const app = express();
 app.disable("x-powered-by");
 app.use(
@@ -18,6 +19,7 @@ app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
 
 app.use(authRouter);
+app.use(publicRouter);
 app.use("/api/administrator", adminRouter);
 
 app.get(
@@ -57,8 +59,13 @@ app.use((request: Request, response: Response) => {
     });
   },
 );
-app.use(( error: unknown, _request: Request, response: Response, _next: NextFunction) => {
+app.use(( error: unknown, _request: Request, response: Response, next: NextFunction) => {
     console.error("Backend error:", error);
+
+    if (response.headersSent) {
+      return next(error);
+    }
+
     const message = error instanceof Error ? error.message : "Internal server error";
     return response.status(500).json({
       success: false,

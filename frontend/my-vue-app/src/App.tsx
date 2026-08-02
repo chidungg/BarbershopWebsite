@@ -16,12 +16,14 @@ import ForgotPassPage from './features/auth/ForgotPasswordPage';
 import LoginPage from './features/auth/LoginPage';
 import SignupPage from './features/auth/SignupPage';
 import HomePage from './features/home/HomePage';
+import ServicesCatalogPage from './features/services/ServicesCatalogPage';
 import ProtectedRoute from './shared/ProtectedRoute';
 
 function App() {
   return (
     <Routes>
       <Route path="/" element={<HomePage />} />
+      <Route path="/services" element={<ServicesCatalogPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<SignupPage />} />
       <Route path="/forgot-password" element={<ForgotPassPage />} />

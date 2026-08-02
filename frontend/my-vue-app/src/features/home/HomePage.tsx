@@ -2,13 +2,58 @@ import { useEffect, useRef, useState } from 'react';
 
 import 'bootstrap/dist/css/bootstrap.min.css';
 import Carousel from 'bootstrap/js/dist/carousel';
+import { fetchHomeContent, type HomeContent } from '../../shared/httpClient';
+import SiteHeader from '../../shared/SiteHeader';
 import './HomePage.css';
-import { barbers, featuredServices, services } from './home.data';
+
+const fallbackServiceImage = '/images/background.png';
+const priceFormatter = new Intl.NumberFormat('vi-VN', {
+  style: 'currency',
+  currency: 'VND',
+  maximumFractionDigits: 0,
+});
+
+function getInitials(name: string) {
+  return name
+    .split(/\s+/)
+    .map((part) => part[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+}
 
 export default function HomePage() {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [content, setContent] = useState<HomeContent | null>(null);
+  const [loadError, setLoadError] = useState('');
   const [bookingMessage, setBookingMessage] = useState('');
+  const [selectedServiceId, setSelectedServiceId] = useState(
+    () => new URLSearchParams(window.location.search).get('service') ?? '',
+  );
   const carouselRef = useRef<HTMLDivElement>(null);
+
+  const services = content?.services ?? [];
+  const featuredServices = services.slice(0, 3);
+  const barbers = content?.barbers ?? [];
+  const shop = content?.shop;
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    fetchHomeContent(controller.signal)
+      .then((data) => {
+        setContent(data);
+        setLoadError('');
+      })
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === 'AbortError')
+          return;
+        setLoadError(
+          error instanceof Error ? error.message : 'Unable to load shop data.',
+        );
+      });
+
+    return () => controller.abort();
+  }, []);
 
   useEffect(() => {
     if (!carouselRef.current) return;
@@ -22,77 +67,32 @@ export default function HomePage() {
 
     carousel.cycle();
     return () => carousel.dispose();
-  }, []);
-
-  function closeMenu() {
-    setIsMenuOpen(false);
-  }
+  }, [featuredServices.length]);
 
   function submitQuickBooking(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const selectedService = services.find(
+      (service) => service.id === selectedServiceId,
+    );
     setBookingMessage(
-      'Choose a time that works for you in the next booking step.',
+      selectedService
+        ? `Continue to choose an available time for ${selectedService.name}.`
+        : 'Choose a time that works for you in the next booking step.',
     );
   }
 
   return (
     <main className="home-page">
-      <header className="site-header">
-        <a
-          className="site-brand"
-          href="#top"
-          aria-label="Gentleman's Barbershop home"
-        >
-          <img src="/images/logo.png" alt="Gentleman's Barbershop" />
-          <span>
-            GENTLEMAN&apos;S BARBERSHOP
-            <small>PREMIUM GROOMING</small>
-          </span>
-        </a>
+      <SiteHeader brandName={shop?.name} />
 
-        <button
-          className="menu-button"
-          type="button"
-          aria-expanded={isMenuOpen}
-          aria-controls="site-navigation"
-          onClick={() => setIsMenuOpen((current) => !current)}
-        >
-          <span />
-          <span />
-          <span />
-          <span className="sr-only">Toggle navigation</span>
-        </button>
-
-        <nav
-          id="site-navigation"
-          className={isMenuOpen ? 'site-nav is-open' : 'site-nav'}
-        >
-          <a href="#top" onClick={closeMenu}>
-            Home
-          </a>
-          <a href="#services" onClick={closeMenu}>
-            Services
-          </a>
-          <a href="#barbers" onClick={closeMenu}>
-            Barbers
-          </a>
-          <a href="#gallery" onClick={closeMenu}>
-            Gallery
-          </a>
-          <a href="#visit" onClick={closeMenu}>
-            Visit us
-          </a>
-        </nav>
-
-        <div className="header-actions">
-          <a className="sign-in-link" href="/login">
-            Sign in
-          </a>
-          <a className="button button--gold button--small" href="#booking">
-            Book now
-          </a>
+      {loadError && (
+        <div className="home-data-alert" role="alert">
+          <span>{loadError}</span>
+          <button type="button" onClick={() => window.location.reload()}>
+            Try again
+          </button>
         </div>
-      </header>
+      )}
 
       <section
         id="top"
@@ -115,7 +115,7 @@ export default function HomePage() {
                 data-bs-slide-to={index}
                 className={index === 0 ? 'active' : undefined}
                 aria-current={index === 0 ? 'true' : undefined}
-                aria-label={`Slide ${index + 1}: ${service.title}`}
+                aria-label={`Slide ${index + 1}: ${service.name}`}
               />
             ))}
           </div>
@@ -127,25 +127,28 @@ export default function HomePage() {
                 key={service.id}
               >
                 <img
-                  className={`d-block w-100 carousel-image carousel-image--${service.id}`}
-                  src={service.image}
-                  alt=""
+                  className="d-block w-100 carousel-image"
+                  src={service.imageUrl ?? fallbackServiceImage}
+                  alt={service.name}
                 />
                 <div className="carousel-shade" />
                 <div className="carousel-caption hero-content page-shell">
-                  <p className="carousel-kicker">{service.eyebrow}</p>
-                  <h1>{service.title}</h1>
+                  <p className="carousel-kicker">{service.categoryName}</p>
+                  <h1>{service.name}</h1>
                   <p className="carousel-description">{service.description}</p>
                   <p className="service-meta">
-                    <span>{service.duration}</span>
+                    <span>{service.durationMinutes} min</span>
                     <i>•</i>
-                    <strong>{service.price}</strong>
+                    <strong>{priceFormatter.format(service.price)}</strong>
                   </p>
                   <div className="hero-actions">
-                    <a className="button button--gold" href="#booking">
+                    <a
+                      className="button button--gold"
+                      href={`/?service=${service.id}#booking`}
+                    >
                       Book this service
                     </a>
-                    <a className="button button--ghost" href="#services">
+                    <a className="button button--ghost" href="/services">
                       View all services <span>→</span>
                     </a>
                   </div>
@@ -173,6 +176,11 @@ export default function HomePage() {
             <span className="visually-hidden">Next</span>
           </button>
         </div>
+        {!content && !loadError && (
+          <div className="home-data-loading" role="status">
+            Loading services…
+          </div>
+        )}
       </section>
 
       <section
@@ -187,12 +195,18 @@ export default function HomePage() {
         <form className="booking-form" onSubmit={submitQuickBooking}>
           <label>
             Service
-            <select defaultValue="" required>
+            <select
+              value={selectedServiceId}
+              required
+              onChange={(event) => setSelectedServiceId(event.target.value)}
+            >
               <option value="" disabled>
                 Select a service
               </option>
               {services.map((service) => (
-                <option key={service.name}>{service.name}</option>
+                <option key={service.id} value={service.id}>
+                  {service.name}
+                </option>
               ))}
             </select>
           </label>
@@ -201,7 +215,9 @@ export default function HomePage() {
             <select defaultValue="">
               <option value="">No preference</option>
               {barbers.map((barber) => (
-                <option key={barber.name}>{barber.name}</option>
+                <option key={barber.id} value={barber.id}>
+                  {barber.name}
+                </option>
               ))}
             </select>
           </label>
@@ -230,19 +246,22 @@ export default function HomePage() {
           </h2>
         </div>
         <div className="service-grid">
-          {services.map((service, index) => (
-            <article className="service-card" key={service.name}>
+          {services.slice(0, 3).map((service, index) => (
+            <article className="service-card" key={service.id}>
               <span className="service-card__number">0{index + 1}</span>
               <span className="service-card__icon" aria-hidden="true">
-                {service.icon}
+                ✦
               </span>
               <h3>{service.name}</h3>
               <p>{service.description}</p>
               <footer>
-                <span>{service.duration}</span>
-                <strong>{service.price}</strong>
+                <span>{service.durationMinutes} min</span>
+                <strong>{priceFormatter.format(service.price)}</strong>
               </footer>
-              <a href="#booking" aria-label={`Book ${service.name}`}>
+              <a
+                href={`/?service=${service.id}#booking`}
+                aria-label={`Book ${service.name}`}
+              >
                 Book now <span>→</span>
               </a>
             </article>
@@ -265,18 +284,25 @@ export default function HomePage() {
             </p>
           </div>
           <div className="barber-grid">
-            {barbers.map((barber, index) => (
-              <article className="barber-card" key={barber.name}>
+            {barbers.map((barber) => (
+              <article className="barber-card" key={barber.id}>
                 <div
-                  className={`barber-card__portrait barber-card__portrait--${index + 1}`}
+                  className="barber-card__portrait"
                   aria-hidden="true"
+                  style={
+                    barber.avatarUrl
+                      ? {
+                          backgroundImage: `linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.4)), url("${barber.avatarUrl}")`,
+                        }
+                      : undefined
+                  }
                 >
-                  <span>{barber.initials}</span>
+                  <span>{getInitials(barber.name)}</span>
                 </div>
                 <div>
-                  <p>Master barber</p>
+                  <p>{barber.experienceYears} years of experience</p>
                   <h3>{barber.name}</h3>
-                  <span>{barber.specialty}</span>
+                  <span>{barber.bio}</span>
                 </div>
                 <a
                   href="#booking"
@@ -371,21 +397,19 @@ export default function HomePage() {
               Book an appointment
             </a>
           </div>
-          <div className="visit-card">
-            <p>Gentleman&apos;s Barbershop</p>
-            <address>
-              123 Nguyen Van Cu Street
-              <br />
-              District 5, Ho Chi Minh City
-            </address>
-            <div>
-              <span>Monday — Sunday</span>
-              <strong>09:00 — 20:30</strong>
+          {shop && (
+            <div className="visit-card">
+              <p>{shop.name}</p>
+              <address>{shop.address}</address>
+              <div>
+                <span>{shop.email}</span>
+                <strong>{shop.timezone}</strong>
+              </div>
+              <a href={`tel:${shop.phone.replace(/\s+/g, '')}`}>
+                {shop.phone} <span>→</span>
+              </a>
             </div>
-            <a href="tel:+84900000000">
-              +84 900 000 000 <span>→</span>
-            </a>
-          </div>
+          )}
         </div>
       </section>
 
@@ -393,11 +417,14 @@ export default function HomePage() {
         <a className="site-brand" href="#top">
           <img src="/images/logo.png" alt="" />
           <span>
-            GENTLEMAN&apos;S BARBERSHOP<small>PREMIUM GROOMING</small>
+            {shop?.name}
+            <small>PREMIUM GROOMING</small>
           </span>
         </a>
         <p>Considered appointments. Confident style.</p>
-        <span>© 2026 Gentleman&apos;s Barbershop</span>
+        <span>
+          © {new Date().getFullYear()} {shop?.name}
+        </span>
       </footer>
     </main>
   );
