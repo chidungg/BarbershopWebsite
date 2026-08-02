@@ -1,0 +1,400 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,600&family=Inter:wght@400;500;600;700;800&display=swap');
+
+.barbers-catalog-page {
+  --barber-ink: #211c18;
+  --barber-charcoal: #171717;
+  --barber-ivory: #f5f0e8;
+  --barber-paper: #fffdf9;
+  --barber-gold: #bd9257;
+  --barber-gold-dark: #9c7342;
+  --barber-muted: #77736d;
+  --barber-line: #d9cebf;
+  min-height: 100vh;
+  color: var(--barber-ink);
+  background: var(--barber-ivory);
+  font-family: 'Inter', sans-serif;
+}
+
+.barbers-toolbar p,
+.barber-modal__header p,
+.barber-modal__body section > p {
+  margin: 0;
+  color: var(--barber-gold);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.17em;
+  text-transform: uppercase;
+}
+
+.barbers-content {
+  padding-top: 164px;
+  padding-bottom: 72px;
+}
+
+.barbers-toolbar {
+  margin-bottom: 24px;
+}
+
+.barbers-toolbar h2 {
+  margin: 5px 0 0;
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 45px;
+  font-weight: 700;
+  letter-spacing: -0.045em;
+  line-height: 0.9;
+}
+
+.barbers-toolbar .input-group,
+.barbers-toolbar .form-select {
+  min-height: 50px;
+}
+
+.barbers-toolbar .input-group-text,
+.barbers-toolbar .form-control,
+.barbers-toolbar .form-select {
+  color: var(--barber-ink);
+  background-color: transparent;
+  border-color: #bfb3a4;
+  border-radius: 0;
+  font-size: 13px;
+}
+
+.barbers-toolbar .input-group-text {
+  padding-right: 3px;
+  border-right: 0;
+  font-size: 23px;
+}
+
+.barbers-toolbar .form-control {
+  border-left: 0;
+}
+
+.barbers-toolbar .form-control:focus,
+.barbers-toolbar .form-select:focus {
+  border-color: var(--barber-gold);
+  box-shadow: 0 0 0 2px rgba(189, 146, 87, 0.14);
+}
+
+.barber-profile-card {
+  display: grid;
+  grid-template-columns: 42% 58%;
+  overflow: hidden;
+  background: var(--barber-paper);
+  border: 1px solid #bfb3a4;
+}
+
+.barber-profile-card > img {
+  width: 100%;
+  height: 100%;
+  min-height: 395px;
+  object-fit: cover;
+  object-position: center top;
+  filter: grayscale(1) contrast(1.04);
+}
+
+.barber-profile-card__content {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  padding: 24px;
+}
+
+.barber-profile-card__schedule {
+  align-self: flex-start;
+  margin: 0;
+  padding: 6px 10px;
+  color: #315e45;
+  border: 1px solid #649076;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+
+.barber-profile-card h3 {
+  margin: 16px 0 0;
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 41px;
+  font-weight: 700;
+  letter-spacing: -0.045em;
+  line-height: 0.86;
+}
+
+.barber-profile-card__experience {
+  margin-top: 11px;
+  color: var(--barber-muted);
+  font-size: 13px;
+}
+
+.barber-profile-card__rating {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 14px;
+  font-size: 13px;
+}
+
+.barber-profile-card__rating strong {
+  color: var(--barber-gold-dark);
+}
+
+.barber-profile-card__rating span {
+  padding-left: 12px;
+  color: var(--barber-muted);
+  border-left: 1px solid var(--barber-line);
+}
+
+.barber-specialties {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 15px;
+}
+
+.barber-specialties span {
+  padding: 6px 8px;
+  color: #514a43;
+  border: 1px solid var(--barber-line);
+  font-size: 10px;
+}
+
+.barber-profile-card__bio {
+  margin: 16px 0 18px;
+  color: var(--barber-muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.barber-profile-card__actions {
+  display: grid;
+  grid-template-columns: 1fr 1.08fr;
+  gap: 10px;
+  margin-top: auto;
+}
+
+.barber-profile-card__actions button,
+.barber-profile-card__actions a,
+.barber-modal__book {
+  display: inline-flex;
+  min-height: 46px;
+  align-items: center;
+  justify-content: center;
+  padding: 9px 12px;
+  font-size: 11px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.barber-profile-card__actions button {
+  color: var(--barber-ink);
+  background: transparent;
+  border: 1px solid var(--barber-ink);
+}
+
+.barber-profile-card__actions a,
+.barber-modal__book {
+  color: #fff;
+  background: linear-gradient(90deg, #a97840, #cda266);
+  border: 1px solid #c5995b;
+}
+
+.barbers-empty {
+  display: grid;
+  min-height: 270px;
+  place-items: center;
+  align-content: center;
+  padding: 40px;
+  text-align: center;
+  background: var(--barber-paper);
+  border: 1px solid var(--barber-line);
+}
+
+.barbers-empty h3 {
+  margin: 0;
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 36px;
+}
+
+.barbers-empty p {
+  margin: 8px 0 0;
+  color: var(--barber-muted);
+}
+
+.barbers-empty button {
+  margin-top: 14px;
+  padding: 0;
+  color: var(--barber-gold-dark);
+  background: transparent;
+  border: 0;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.barber-modal {
+  position: fixed;
+  z-index: 50;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.barber-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(10, 9, 8, 0.78);
+  border: 0;
+  backdrop-filter: blur(4px);
+}
+
+.barber-modal__dialog {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 880px);
+  max-height: calc(100vh - 48px);
+  padding: 38px;
+  overflow-y: auto;
+  background: var(--barber-paper);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.34);
+}
+
+.barber-modal__close {
+  position: absolute;
+  z-index: 2;
+  top: 16px;
+  right: 16px;
+  width: 36px;
+  height: 36px;
+  color: var(--barber-ink);
+  background: var(--barber-paper);
+  border: 1px solid var(--barber-line);
+  font-size: 24px;
+}
+
+.barber-modal__header {
+  display: grid;
+  grid-template-columns: 150px 1fr;
+  gap: 28px;
+  align-items: center;
+  padding-bottom: 28px;
+  border-bottom: 1px solid var(--barber-line);
+}
+
+.barber-modal__header img {
+  width: 150px;
+  height: 170px;
+  object-fit: cover;
+  object-position: center top;
+  filter: grayscale(1);
+}
+
+.barber-modal__header h2 {
+  margin: 8px 0 0;
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 52px;
+  font-weight: 700;
+  letter-spacing: -0.05em;
+  line-height: 0.88;
+}
+
+.barber-modal__header span {
+  display: block;
+  margin-top: 15px;
+  color: var(--barber-muted);
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.barber-modal__body {
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+  gap: 35px;
+  padding-top: 27px;
+}
+
+.barber-service-list,
+.barber-hours-list {
+  margin-top: 12px;
+  border-top: 1px solid var(--barber-line);
+}
+
+.barber-service-list > div,
+.barber-hours-list > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--barber-line);
+}
+
+.barber-service-list span {
+  display: grid;
+  gap: 3px;
+}
+
+.barber-service-list strong,
+.barber-service-list b,
+.barber-hours-list strong {
+  font-size: 12px;
+}
+
+.barber-service-list small,
+.barber-hours-list span {
+  color: var(--barber-muted);
+  font-size: 10px;
+}
+
+.barber-modal__book {
+  width: 100%;
+  margin-top: 28px;
+}
+
+@media (max-width: 1199.98px) {
+  .barber-profile-card > img {
+    min-height: 360px;
+  }
+}
+
+@media (max-width: 820px) {
+  .barbers-content {
+    padding-top: 131px;
+  }
+}
+
+@media (max-width: 650px) {
+  .barber-profile-card {
+    grid-template-columns: 1fr;
+  }
+
+  .barber-profile-card > img {
+    height: 320px;
+    min-height: 0;
+  }
+
+  .barber-profile-card__actions,
+  .barber-modal__header,
+  .barber-modal__body {
+    grid-template-columns: 1fr;
+  }
+
+  .barber-modal {
+    padding: 12px;
+  }
+
+  .barber-modal__dialog {
+    max-height: calc(100vh - 24px);
+    padding: 25px;
+  }
+
+  .barber-modal__header img {
+    width: 100%;
+    height: 220px;
+  }
+
+  .barber-modal__header h2 {
+    padding-right: 30px;
+    font-size: 43px;
+  }
+}

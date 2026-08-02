@@ -3,7 +3,7 @@ import { useState } from 'react';
 import './SiteHeader.css';
 
 type SiteHeaderProps = {
-  currentPage?: 'home' | 'services';
+  currentPage?: 'home' | 'services' | 'barbers';
   brandName?: string;
 };
 
@@ -60,7 +60,11 @@ export default function SiteHeader({
         >
           Services
         </a>
-        <a href={isHomePage ? '#barbers' : '/#barbers'} onClick={closeMenu}>
+        <a
+          className={currentPage === 'barbers' ? 'is-active' : undefined}
+          href="/barbers"
+          onClick={closeMenu}
+        >
           Barbers
         </a>
         <a href={isHomePage ? '#gallery' : '/#gallery'} onClick={closeMenu}>

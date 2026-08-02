@@ -15,6 +15,7 @@ import UsersPage from './features/admin/UsersPage';
 import ForgotPassPage from './features/auth/ForgotPasswordPage';
 import LoginPage from './features/auth/LoginPage';
 import SignupPage from './features/auth/SignupPage';
+import BarbersCatalogPage from './features/barbers/BarbersCatalogPage';
 import HomePage from './features/home/HomePage';
 import ServicesCatalogPage from './features/services/ServicesCatalogPage';
 import ProtectedRoute from './shared/ProtectedRoute';
@@ -24,6 +25,7 @@ function App() {
     <Routes>
       <Route path="/" element={<HomePage />} />
       <Route path="/services" element={<ServicesCatalogPage />} />
+      <Route path="/barbers" element={<BarbersCatalogPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<SignupPage />} />
       <Route path="/forgot-password" element={<ForgotPassPage />} />
@@ -47,10 +49,22 @@ function App() {
         <Route path="reports" element={<ReportsPage />} />
         <Route path="settings" element={<SettingsPage />} />
 
-        <Route path="user" element={<Navigate to="/administrator/users" replace />} />
-        <Route path="barber" element={<Navigate to="/administrator/barbers" replace />} />
-        <Route path="appointment" element={<Navigate to="/administrator/appointments" replace />} />
-        <Route path="payment" element={<Navigate to="/administrator/payments" replace />} />
+        <Route
+          path="user"
+          element={<Navigate to="/administrator/users" replace />}
+        />
+        <Route
+          path="barber"
+          element={<Navigate to="/administrator/barbers" replace />}
+        />
+        <Route
+          path="appointment"
+          element={<Navigate to="/administrator/appointments" replace />}
+        />
+        <Route
+          path="payment"
+          element={<Navigate to="/administrator/payments" replace />}
+        />
       </Route>
 
       <Route path="*" element={<UndefPage />} />

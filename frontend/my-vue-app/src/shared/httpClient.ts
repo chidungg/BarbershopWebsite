@@ -37,6 +37,28 @@ export type PublicBarber = {
   reviewCount: number;
 };
 
+export type PublicBarberService = {
+  id: string;
+  name: string;
+  categoryName: string;
+  price: number;
+  durationMinutes: number;
+};
+
+export type PublicBarberSchedule = {
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
+  validFrom: string;
+  validTo: string | null;
+};
+
+export type PublicBarberProfile = PublicBarber & {
+  specialties: string[];
+  services: PublicBarberService[];
+  schedules: PublicBarberSchedule[];
+};
+
 export type ShopDetails = {
   name: string;
   address: string;
@@ -56,6 +78,12 @@ export type ServicesCatalog = {
   shopName: string;
   categories: PublicServiceCategory[];
   services: PublicService[];
+};
+
+export type BarbersCatalog = {
+  shopName: string;
+  timezone: string;
+  barbers: PublicBarberProfile[];
 };
 
 async function getPublicData<T>(
@@ -81,4 +109,8 @@ export function fetchHomeContent(signal?: AbortSignal) {
 
 export function fetchServicesCatalog(signal?: AbortSignal) {
   return getPublicData<ServicesCatalog>('/public/services', signal);
+}
+
+export function fetchBarbersCatalog(signal?: AbortSignal) {
+  return getPublicData<BarbersCatalog>('/public/barbers', signal);
 }

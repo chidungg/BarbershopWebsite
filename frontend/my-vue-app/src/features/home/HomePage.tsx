@@ -29,6 +29,9 @@ export default function HomePage() {
   const [selectedServiceId, setSelectedServiceId] = useState(
     () => new URLSearchParams(window.location.search).get('service') ?? '',
   );
+  const [selectedBarberId, setSelectedBarberId] = useState(
+    () => new URLSearchParams(window.location.search).get('barber') ?? '',
+  );
   const carouselRef = useRef<HTMLDivElement>(null);
 
   const services = content?.services ?? [];
@@ -212,7 +215,10 @@ export default function HomePage() {
           </label>
           <label>
             Barber
-            <select defaultValue="">
+            <select
+              value={selectedBarberId}
+              onChange={(event) => setSelectedBarberId(event.target.value)}
+            >
               <option value="">No preference</option>
               {barbers.map((barber) => (
                 <option key={barber.id} value={barber.id}>
