@@ -18,6 +18,8 @@ import SignupPage from './features/auth/SignupPage';
 import BarbersCatalogPage from './features/barbers/BarbersCatalogPage';
 import HomePage from './features/home/HomePage';
 import ServicesCatalogPage from './features/services/ServicesCatalogPage';
+import ProfilePage from './features/profile/ProfilePage';
+import CustomerRoute from './shared/CustomerRoute';
 import ProtectedRoute from './shared/ProtectedRoute';
 
 function App() {
@@ -29,6 +31,14 @@ function App() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<SignupPage />} />
       <Route path="/forgot-password" element={<ForgotPassPage />} />
+      <Route
+        path="/profile"
+        element={
+          <CustomerRoute>
+            <ProfilePage />
+          </CustomerRoute>
+        }
+      />
 
       <Route
         path="/administrator"

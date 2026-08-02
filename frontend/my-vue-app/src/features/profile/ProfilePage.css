@@ -1,0 +1,525 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,600&family=Inter:wght@400;500;600;700;800&display=swap');
+
+.profile-page {
+  --profile-charcoal: #1b1917;
+  --profile-ink: #211c18;
+  --profile-ivory: #f4efe7;
+  --profile-paper: #fffdf9;
+  --profile-gold: #bd9257;
+  --profile-gold-dark: #936b3c;
+  --profile-gold-soft: #f1e4d2;
+  --profile-line: #dfd3c2;
+  --profile-muted: #77716a;
+  min-height: 100vh;
+  color: var(--profile-ink);
+  background: var(--profile-ivory);
+  font-family: 'Inter', sans-serif;
+}
+
+.profile-page__content {
+  padding-top: 174px;
+  padding-bottom: 82px;
+}
+
+.profile-page__heading {
+  margin-bottom: 34px;
+}
+
+.profile-eyebrow {
+  margin: 0 0 8px;
+  color: var(--profile-gold-dark);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.profile-page__heading h1,
+.profile-section-heading h2,
+.profile-empty-appointment h3,
+.profile-appointments-empty h3 {
+  margin: 0;
+  font-family: 'Cormorant Garamond', serif;
+  font-weight: 700;
+  letter-spacing: -0.045em;
+}
+
+.profile-page__heading h1 {
+  font-size: clamp(45px, 5vw, 66px);
+  line-height: 0.95;
+}
+
+.profile-page__heading > div > span,
+.profile-section-heading > div > span {
+  display: block;
+  margin-top: 13px;
+  color: var(--profile-muted);
+  font-size: 13px;
+}
+
+.profile-primary-button,
+.profile-outline-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-height: 46px;
+  padding: 10px 18px;
+  border-radius: 0;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.profile-primary-button {
+  color: #201a14;
+  background: var(--profile-gold);
+  border: 1px solid var(--profile-gold);
+}
+
+.profile-primary-button:hover,
+.profile-primary-button:focus {
+  color: #201a14;
+  background: #cda469;
+  border-color: #cda469;
+}
+
+.profile-outline-button {
+  color: var(--profile-ink);
+  background: transparent;
+  border: 1px solid currentColor;
+}
+
+.profile-outline-button:hover,
+.profile-outline-button:focus {
+  color: #fff;
+  background: var(--profile-charcoal);
+  border-color: var(--profile-charcoal);
+}
+
+.profile-sidebar,
+.profile-empty-appointment,
+.profile-stat,
+.profile-history-card,
+.profile-appointments-empty,
+.profile-form {
+  background: var(--profile-paper);
+  border: 1px solid var(--profile-line);
+  border-radius: 0;
+  box-shadow: 0 14px 32px rgba(67, 48, 30, 0.055);
+}
+
+.profile-sidebar {
+  position: sticky;
+  top: 140px;
+  padding: 18px 14px;
+}
+
+.profile-sidebar__identity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 3px 5px 18px;
+  border-bottom: 1px solid var(--profile-line);
+}
+
+.profile-sidebar__identity > img,
+.profile-sidebar__identity > span {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 48px;
+  height: 48px;
+  overflow: hidden;
+  color: #fff;
+  background: var(--profile-gold-dark);
+  border-radius: 50%;
+  object-fit: cover;
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.profile-sidebar__identity div {
+  min-width: 0;
+}
+
+.profile-sidebar__identity strong,
+.profile-sidebar__identity small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile-sidebar__identity strong {
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.profile-sidebar__identity small {
+  margin-top: 4px;
+  color: var(--profile-muted);
+  font-size: 9px;
+}
+
+.profile-sidebar__nav {
+  display: grid;
+  gap: 4px;
+  padding-top: 14px;
+}
+
+.profile-sidebar__nav .nav-link {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  padding: 12px;
+  color: var(--profile-muted);
+  border-radius: 0;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: left;
+}
+
+.profile-sidebar__nav .nav-link:hover {
+  color: var(--profile-ink);
+  background: #f7f1e8;
+}
+
+.profile-sidebar__nav .nav-link.active {
+  color: var(--profile-ink);
+  background: var(--profile-gold-soft);
+  box-shadow: inset 3px 0 0 var(--profile-gold-dark);
+}
+
+.profile-section-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  min-height: 60px;
+  margin-bottom: 18px;
+}
+
+.profile-section-heading h2 {
+  font-size: 36px;
+  line-height: 1;
+}
+
+.profile-empty-appointment {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 22px;
+  padding: 25px;
+  color: #fff;
+  background: var(--profile-charcoal);
+  border-color: var(--profile-charcoal);
+  border-left: 4px solid var(--profile-gold);
+}
+
+.profile-empty-appointment__icon {
+  display: grid;
+  place-items: center;
+  width: 74px;
+  height: 74px;
+  color: var(--profile-gold);
+  background: #282521;
+  border: 1px solid #5d4b37;
+}
+
+.profile-empty-appointment__icon .profile-icon {
+  width: 28px;
+  height: 28px;
+}
+
+.profile-empty-appointment h3,
+.profile-appointments-empty h3 {
+  font-size: 29px;
+}
+
+.profile-empty-appointment p {
+  margin: 8px 0 0;
+  color: #cfc6bc;
+  font-size: 12px;
+}
+
+.profile-empty-appointment .profile-outline-button {
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.45);
+}
+
+.profile-empty-appointment .profile-outline-button:hover {
+  color: #211c18;
+  background: var(--profile-gold);
+  border-color: var(--profile-gold);
+}
+
+.profile-stat {
+  min-height: 148px;
+  padding: 21px;
+}
+
+.profile-stat > span {
+  color: var(--profile-muted);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.profile-stat strong {
+  display: block;
+  margin-top: 12px;
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 28px;
+  line-height: 1;
+}
+
+.profile-history-card {
+  padding: 22px;
+}
+
+.profile-history-card header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.profile-history-card h3 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.profile-history-card button {
+  padding: 0;
+  color: var(--profile-gold-dark);
+  background: transparent;
+  border: 0;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.profile-history-empty {
+  margin-top: 16px;
+  padding: 26px 18px;
+  color: var(--profile-muted);
+  background: #faf6f0;
+  border: 1px dashed #d6c9b8;
+  text-align: center;
+}
+
+.profile-history-empty p {
+  margin: 0;
+  font-size: 11px;
+}
+
+.profile-appointments-empty {
+  display: grid;
+  justify-items: center;
+  min-height: 410px;
+  padding: 70px 28px;
+  text-align: center;
+}
+
+.profile-appointments-empty > span {
+  display: grid;
+  place-items: center;
+  width: 74px;
+  height: 74px;
+  margin-bottom: 20px;
+  color: var(--profile-gold-dark);
+  background: var(--profile-gold-soft);
+  border-radius: 50%;
+}
+
+.profile-appointments-empty > span .profile-icon {
+  width: 28px;
+  height: 28px;
+}
+
+.profile-appointments-empty p {
+  max-width: 430px;
+  margin: 12px 0 24px;
+  color: var(--profile-muted);
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.profile-form {
+  padding: 28px;
+}
+
+.profile-form .alert {
+  border-radius: 0;
+  font-size: 12px;
+}
+
+.profile-form .form-label {
+  color: #625b54;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.profile-form .input-group-text,
+.profile-form .form-control {
+  min-height: 48px;
+  color: var(--profile-ink);
+  background: #faf6f0;
+  border-color: var(--profile-line);
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.profile-form .input-group-text {
+  padding-inline: 14px;
+  color: var(--profile-gold-dark);
+  border-right: 0;
+}
+
+.profile-form .form-control {
+  border-left: 0;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.profile-form .form-control:focus {
+  border-color: var(--profile-gold);
+  background: #fffdf9;
+}
+
+.profile-form .form-control:disabled {
+  color: #8b837b;
+  background: #eee8df;
+}
+
+.profile-form .form-text {
+  color: var(--profile-muted);
+  font-size: 10px;
+}
+
+.profile-form__actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 26px;
+  padding-top: 22px;
+  border-top: 1px solid var(--profile-line);
+}
+
+.auth-route-state {
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 14px;
+  min-height: 100vh;
+  padding: 24px;
+  color: #fff;
+  background: #1b1917;
+  text-align: center;
+}
+
+.auth-route-state p {
+  margin: 0;
+  color: #d6cfc7;
+}
+
+@media (max-width: 991.98px) {
+  .profile-page__content {
+    padding-top: 146px;
+  }
+
+  .profile-sidebar {
+    position: static;
+    padding: 12px;
+  }
+
+  .profile-sidebar__identity {
+    display: none;
+  }
+
+  .profile-sidebar__nav {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    padding-top: 0;
+  }
+
+  .profile-sidebar__nav .nav-link {
+    justify-content: center;
+    padding: 12px 8px;
+    text-align: center;
+  }
+
+  .profile-sidebar__nav .nav-link.active {
+    box-shadow: inset 0 -3px 0 var(--profile-gold-dark);
+  }
+}
+
+@media (max-width: 767.98px) {
+  .profile-page__content {
+    padding-top: 126px;
+    padding-bottom: 58px;
+  }
+
+  .profile-page__heading h1 {
+    font-size: 46px;
+  }
+
+  .profile-page__heading .profile-primary-button {
+    width: 100%;
+  }
+
+  .profile-sidebar__nav .nav-link span {
+    display: none;
+  }
+
+  .profile-sidebar__nav .profile-icon {
+    width: 20px;
+    height: 20px;
+  }
+
+  .profile-section-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .profile-section-heading .profile-primary-button {
+    width: 100%;
+  }
+
+  .profile-empty-appointment {
+    grid-template-columns: auto 1fr;
+    padding: 20px;
+  }
+
+  .profile-empty-appointment__icon {
+    width: 58px;
+    height: 58px;
+  }
+
+  .profile-empty-appointment .profile-outline-button {
+    grid-column: 1 / -1;
+  }
+
+  .profile-form {
+    padding: 21px;
+  }
+
+  .profile-form__actions .profile-primary-button {
+    width: 100%;
+  }
+
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .profile-page * {
+    scroll-behavior: auto !important;
+    transition: none !important;
+  }
+}

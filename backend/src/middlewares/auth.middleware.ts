@@ -1,7 +1,14 @@
 import type { NextFunction, Request, RequestHandler, Response,} from "express";
 import {createSupabaseAdminClient, createSupabaseAuthClient,} from "../lib/supabase";
 export type AppRole = "admin" | "barber" | "user";
-export type AuthUser = { id: string; email: string; role: AppRole;};
+export type AuthUser = {
+  id: string;
+  email: string;
+  role: AppRole;
+  fullName: string;
+  phone: string;
+  avatarUrl: string | null;
+};
 declare global {
   namespace Express {
     interface Request {
@@ -95,6 +102,18 @@ export const getRoleByUser: RequestHandler = async ( request: Request, response:
       id: user.id,
       email,
       role,
+      fullName:
+        typeof user.user_metadata.full_name === "string"
+          ? user.user_metadata.full_name.trim()
+          : "",
+      phone:
+        typeof user.user_metadata.phone === "string"
+          ? user.user_metadata.phone.trim()
+          : "",
+      avatarUrl:
+        typeof user.user_metadata.avatar_url === "string"
+          ? user.user_metadata.avatar_url.trim() || null
+          : null,
     };
     next();
   } catch (error) {

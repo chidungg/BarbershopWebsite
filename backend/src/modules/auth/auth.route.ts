@@ -4,9 +4,19 @@ import { env } from "../../config/env";
 import { createSupabaseOAuthClient } from "../../lib/supabase-oauth";
 import { LoginRequestBody, SignupRequestBody, AuthSession, ForgotPasswordCheckEmailBody  } from "./auth.type";
 import { createSupabaseAuthClient, createSupabaseAdminClient} from "../../lib/supabase";
-import { getRoleByEmail, getRoleByUser } from "../../middlewares/auth.middleware";
+import {
+  getRoleByEmail,
+  getRoleByUser,
+  isUser,
+  type AppRole,
+} from "../../middlewares/auth.middleware";
 
 export const authRouter = Router();
+
+function getFrontendDestination(role: AppRole): string {
+  if (role === "admin") return "/administrator";
+  return "/";
+}
 
 function buildFrontendRedirect( parameter: "authSuccess" | "authError", value: string,): string {
   const redirectUrl = new URL(env.frontendUrl);
@@ -157,7 +167,7 @@ authRouter.post("/api/auth/login", async (request: Request, response: Response) 
         id: data.user.id,
         email: userEmail,
         role,
-        redirectTo: role === "admin" ? "/administrator" : "/",
+        redirectTo: getFrontendDestination(role),
       },
     });
   } catch (error) {
@@ -192,10 +202,10 @@ authRouter.get(
         id: authUser.id,
         email: authUser.email,
         role: authUser.role,
-        redirectTo:
-          authUser.role === "admin"
-            ? "/administrator"
-            : "/",
+        fullName: authUser.fullName,
+        phone: authUser.phone,
+        avatarUrl: authUser.avatarUrl,
+        redirectTo: getFrontendDestination(authUser.role),
       },
     });
   },
@@ -211,6 +221,204 @@ authRouter.post(
       code: "logout_success",
       message: "Logged out successfully",
     });
+  },
+);
+
+authRouter.patch(
+  "/api/auth/profile",
+  getRoleByUser,
+  isUser,
+  async (request: Request, response: Response) => {
+    const fullName =
+      typeof request.body.fullName === "string"
+        ? request.body.fullName.trim()
+        : "";
+    const phone =
+      typeof request.body.phone === "string"
+        ? request.body.phone.trim().replace(/[\s.-]/g, "")
+        : "";
+
+    if (fullName.length < 2 || fullName.length > 100) {
+      return response.status(400).json({
+        success: false,
+        code: "invalid_full_name",
+        message: "Full name must contain between 2 and 100 characters",
+      });
+    }
+
+    if (phone && !/^(?:\+84|0)\d{9}$/.test(phone)) {
+      return response.status(400).json({
+        success: false,
+        code: "invalid_phone",
+        message: "Phone number is invalid",
+      });
+    }
+
+    const accessToken = request.cookies?.["sb-access-token"];
+    const refreshToken = request.cookies?.["sb-refresh-token"];
+
+    if (typeof accessToken !== "string" || typeof refreshToken !== "string") {
+      return response.status(401).json({
+        success: false,
+        code: "authentication_required",
+        message: "Your session has expired. Please sign in again",
+      });
+    }
+
+    try {
+      const client = createSupabaseAuthClient();
+      const { error: sessionError } = await client.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken,
+      });
+
+      if (sessionError) {
+        return response.status(401).json({
+          success: false,
+          code: "invalid_or_expired_token",
+          message: "Your session has expired. Please sign in again",
+        });
+      }
+
+      const { data, error } = await client.auth.updateUser({
+        data: { full_name: fullName, phone },
+      });
+
+      if (error || !data.user) {
+        console.error("Profile update failed:", error);
+        return response.status(error?.status ?? 502).json({
+          success: false,
+          code: "profile_update_failed",
+          message: "Unable to update your profile",
+        });
+      }
+
+      const { data: sessionData } = await client.auth.getSession();
+      if (sessionData.session) setSessionCookies(response, sessionData.session);
+
+      return response.status(200).json({
+        success: true,
+        code: "profile_update_success",
+        message: "Profile updated successfully",
+        data: {
+          id: data.user.id,
+          email: data.user.email,
+          role: request.authUser?.role,
+          fullName,
+          phone,
+          avatarUrl:
+            typeof data.user.user_metadata.avatar_url === "string"
+              ? data.user.user_metadata.avatar_url
+              : null,
+          redirectTo: "/",
+        },
+      });
+    } catch (error) {
+      console.error("Profile update exception:", error);
+      return response.status(500).json({
+        success: false,
+        code: "profile_update_internal_error",
+        message: "An internal error occurred while updating your profile",
+      });
+    }
+  },
+);
+
+authRouter.post(
+  "/api/auth/change-password",
+  getRoleByUser,
+  isUser,
+  async (request: Request, response: Response) => {
+    const currentPassword =
+      typeof request.body.currentPassword === "string"
+        ? request.body.currentPassword
+        : "";
+    const newPassword =
+      typeof request.body.newPassword === "string"
+        ? request.body.newPassword
+        : "";
+    const confirmPassword =
+      typeof request.body.confirmPassword === "string"
+        ? request.body.confirmPassword
+        : "";
+
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      return response.status(400).json({
+        success: false,
+        code: "missing_password_fields",
+        message: "All password fields are required",
+      });
+    }
+    if (newPassword.length < 8) {
+      return response.status(400).json({
+        success: false,
+        code: "weak_password",
+        message: "New password must contain at least eight characters",
+      });
+    }
+    if (newPassword !== confirmPassword) {
+      return response.status(400).json({
+        success: false,
+        code: "password_mismatch",
+        message: "Password confirmation does not match",
+      });
+    }
+    if (currentPassword === newPassword) {
+      return response.status(400).json({
+        success: false,
+        code: "same_password",
+        message: "New password must be different from the current password",
+      });
+    }
+
+    try {
+      const client = createSupabaseAuthClient();
+      const { data: signInData, error: signInError } =
+        await client.auth.signInWithPassword({
+          email: request.authUser!.email,
+          password: currentPassword,
+        });
+
+      if (signInError || !signInData.session) {
+        return response.status(401).json({
+          success: false,
+          code: "current_password_incorrect",
+          message: "Current password is incorrect",
+        });
+      }
+
+      const { data, error } = await client.auth.updateUser({
+        password: newPassword,
+      });
+
+      if (error || !data.user) {
+        console.error("Authenticated password update failed:", error);
+        return response.status(error?.status ?? 502).json({
+          success: false,
+          code: "password_update_failed",
+          message: "Unable to update your password",
+        });
+      }
+
+      const { data: sessionData } = await client.auth.getSession();
+      setSessionCookies(
+        response,
+        sessionData.session ?? signInData.session,
+      );
+
+      return response.status(200).json({
+        success: true,
+        code: "password_update_success",
+        message: "Password updated successfully",
+      });
+    } catch (error) {
+      console.error("Authenticated password update exception:", error);
+      return response.status(500).json({
+        success: false,
+        code: "password_update_internal_error",
+        message: "An internal error occurred while updating your password",
+      });
+    }
   },
 );
 
@@ -630,7 +838,7 @@ authRouter.get("/auth/google/callback", async (request: Request, response: Respo
       });
 
       const redirectUrl = new URL(
-        role === "admin" ? "/administrator" : "/",
+        getFrontendDestination(role),
         env.frontendUrl,
       );
       redirectUrl.searchParams.set(

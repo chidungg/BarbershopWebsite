@@ -1,6 +1,7 @@
 import { useState, type SubmitEvent } from "react";
 import "./LoginPage.css";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../shared/AuthContext";
 
 
 export default function LoginPage() {
@@ -25,6 +26,7 @@ export default function LoginPage() {
     };
     };
     const navigate = useNavigate();
+    const { refreshCurrentUser } = useAuth();
     const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:3000/api";
     const BACKEND_BASE_URL = import.meta.env.VITE_BACKEND_BASE_URL ?? "http://localhost:3000";
     
@@ -76,8 +78,11 @@ export default function LoginPage() {
 
         const destination =
           result.data?.redirectTo ??
-          (role === "admin" ? "/administrator" : "/");
+          (role === "admin"
+            ? "/administrator"
+            : "/");
 
+        await refreshCurrentUser();
         navigate(destination, { replace: true });
         return;
       }
