@@ -22,9 +22,7 @@ app.use(authRouter);
 app.use(publicRouter);
 app.use("/api/administrator", adminRouter);
 
-app.get(
-  "/",
-  (_request: Request, response: Response) => {
+app.get("/",(_request: Request, response: Response) => {
     return response.status(200).json({
       success: true,
       message: "Barbershop API is running",

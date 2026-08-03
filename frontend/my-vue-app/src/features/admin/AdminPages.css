@@ -727,3 +727,19 @@
   .admin-business-hours-form > div > span { display: none; }
   .admin-business-hours-form button { grid-column: auto; }
 }
+.admin-customer-cell > span {
+  overflow: hidden;
+}
+
+.admin-customer-cell > span img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  object-fit: cover;
+}
+
+.admin-pagination button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
