@@ -743,3 +743,108 @@
   cursor: not-allowed;
   opacity: 0.45;
 }
+
+.admin-barber-card__avatar {
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.admin-barber-card__avatar img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.admin-barber-card__availability > div {
+  display: grid;
+  gap: 3px;
+  text-align: right;
+}
+
+.admin-barber-card__availability small {
+  color: var(--admin-muted);
+  font-size: 8px;
+}
+
+.admin-barber-card__availability strong.is-in-service { color: var(--admin-orange); }
+.admin-barber-card__availability strong.is-day-off,
+.admin-barber-card__availability strong.is-off-shift,
+.admin-barber-card__availability strong.is-inactive { color: var(--admin-muted); }
+.admin-barber-card__availability strong.is-time-off { color: var(--admin-red); }
+
+.admin-payment-amount { display: grid; gap: 3px; }
+.admin-payment-amount strong { font-size: 10px; }
+.admin-payment-amount small { color: var(--admin-blue); font-size: 8px; }
+.admin-payment-subtext { display: block; margin-top: 3px; color: var(--admin-muted); font-size: 8px; }
+
+.admin-status-badge.is-pending,
+.admin-status-badge.is-processing { color: var(--admin-orange); background: var(--admin-orange-soft); }
+
+.admin-status-badge.is-partially-refunded,
+.admin-status-badge.is-refunded { color: var(--admin-blue); background: var(--admin-blue-soft); }
+
+.admin-status-badge.is-cancelled,
+.admin-status-badge.is-failed { color: var(--admin-red); background: var(--admin-red-soft); }
+
+.admin-pagination button:disabled { cursor: not-allowed; opacity: 0.45; }
+
+.admin-service-card__visual img {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.admin-service-card__visual::after {
+  z-index: 1;
+  background:
+    linear-gradient(180deg, rgba(20, 16, 12, 0.05), rgba(20, 16, 12, 0.7)),
+    radial-gradient(circle at 75% 25%, rgba(255, 255, 255, 0.18), transparent 28%);
+}
+
+.admin-service-card__visual span { z-index: 2; }
+.admin-schedule-barber > span {
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.admin-schedule-barber > span img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.admin-schedule-grid__row > button {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.admin-schedule-grid__row > button small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-request-list > span {
+  padding: 14px 0;
+  color: var(--admin-muted);
+  font-size: 9px;
+}
+
+.admin-report-card__value {
+  display: block;
+  margin-top: 14px;
+  overflow: hidden;
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 22px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-report-card__value + span {
+  margin: 4px 0 13px;
+}

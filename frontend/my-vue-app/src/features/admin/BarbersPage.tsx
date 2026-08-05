@@ -1,16 +1,175 @@
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import AdminIcon from './AdminIcon';
 import AdminPageHeader from './AdminPageHeader';
 
-const barbers = [
-  { name: 'Marcus Lee', initials: 'ML', role: 'Master Barber', specialties: ['Fade', 'Beard', 'Classic'], rating: '4.9', bookings: 186, revenue: '₫38.2M', availability: 'Available', status: 'Active' },
-  { name: 'Daniel Pham', initials: 'DP', role: 'Senior Barber', specialties: ['Texture', 'Styling'], rating: '4.8', bookings: 164, revenue: '₫32.7M', availability: 'In service', status: 'Active' },
-  { name: 'James Vu', initials: 'JV', role: 'Style Specialist', specialties: ['Perm', 'Color'], rating: '4.8', bookings: 142, revenue: '₫27.9M', availability: 'Available', status: 'Active' },
-  { name: 'Henry Nguyen', initials: 'HN', role: 'Barber', specialties: ['Haircut', 'Shave'], rating: '4.7', bookings: 118, revenue: '₫19.6M', availability: 'Day off', status: 'Active' },
-  { name: 'Ryan Do', initials: 'RD', role: 'Junior Barber', specialties: ['Haircut'], rating: '4.5', bookings: 72, revenue: '₫11.4M', availability: 'Unavailable', status: 'Inactive' },
-  { name: 'William Tran', initials: 'WT', role: 'Senior Barber', specialties: ['Beard', 'Grooming'], rating: '4.7', bookings: 131, revenue: '₫22.1M', availability: 'Available', status: 'Active' },
-];
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000/api').replace(/\/$/, '');
+
+type BarberStatusFilter = 'all' | 'active' | 'inactive';
+type BarberAvailability = 'available' | 'in_service' | 'day_off' | 'off_shift' | 'time_off' | 'inactive';
+type AssignedService = { id: string; name: string };
+
+type BarberItem = {
+  id: string;
+  accountId: string;
+  displayName: string;
+  bio: string;
+  phone: string;
+  avatarUrl: string | null;
+  experienceYears: number;
+  hiredAt: string | null;
+  isActive: boolean;
+  ratingAverage: number;
+  reviewCount: number;
+  assignedServices: AssignedService[];
+  monthlyBookings: number;
+  monthlyRevenue: number;
+  availability: BarberAvailability;
+  todayShift: string;
+};
+
+type BarbersData = {
+  currency: string;
+  metrics: {
+    totalBarbers: number;
+    activeBarbers: number;
+    availableToday: number;
+    availablePercentage: number;
+    averageRating: number;
+    totalReviews: number;
+    monthlyBookings: number;
+    monthlyBookingsGrowth: number;
+  };
+  services: AssignedService[];
+  items: BarberItem[];
+};
+
+type BarbersResponse = { success: boolean; message?: string; data?: BarbersData };
+
+const availabilityLabels: Record<BarberAvailability, string> = {
+  available: 'Available',
+  in_service: 'In service',
+  day_off: 'Day off',
+  off_shift: 'Off shift',
+  time_off: 'Time off',
+  inactive: 'Inactive',
+};
+
+function getInitials(name: string) {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  if (!words.length) return '--';
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+  return `${words[0][0]}${words[words.length - 1][0]}`.toUpperCase();
+}
+
+function formatCurrency(value: number, currency: string) {
+  try {
+    return new Intl.NumberFormat('vi-VN', {
+      style: 'currency',
+      currency,
+      notation: 'compact',
+      maximumFractionDigits: 1,
+    }).format(value);
+  } catch {
+    return `${value.toLocaleString('vi-VN')} ${currency}`;
+  }
+}
+
+function formatGrowth(value: number) {
+  return `${value > 0 ? '+' : ''}${value.toFixed(1)}%`;
+}
+
+function BarberAvatar({ barber }: { barber: BarberItem }) {
+  const [imageError, setImageError] = useState(false);
+
+  useEffect(() => setImageError(false), [barber.avatarUrl]);
+
+  return (
+    <span className="admin-barber-card__avatar">
+      {barber.avatarUrl && !imageError ? (
+        <img
+          src={barber.avatarUrl}
+          alt={`${barber.displayName} avatar`}
+          referrerPolicy="no-referrer"
+          onError={() => setImageError(true)}
+        />
+      ) : getInitials(barber.displayName)}
+    </span>
+  );
+}
 
 export default function BarbersPage() {
+  const navigate = useNavigate();
+  const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [status, setStatus] = useState<BarberStatusFilter>('all');
+  const [serviceId, setServiceId] = useState('');
+  const [data, setData] = useState<BarbersData | null>(null);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => setDebouncedSearch(search.trim()), 300);
+    return () => window.clearTimeout(timeout);
+  }, [search]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    async function loadBarbers() {
+      setError('');
+
+      try {
+        const params = new URLSearchParams({ search: debouncedSearch, status, serviceId });
+        const response = await fetch(`${API_BASE_URL}/administrator/barbers?${params}`, {
+          credentials: 'include',
+          headers: { Accept: 'application/json' },
+          signal: controller.signal,
+        });
+
+        const payload = (await response.json()) as BarbersResponse;
+
+        if (!response.ok || !payload.success || !payload.data) {
+          throw new Error(payload.message ?? 'Unable to load barbers.');
+        }
+
+        setData(payload.data);
+      } catch (requestError) {
+        if (requestError instanceof DOMException && requestError.name === 'AbortError') return;
+        setError(requestError instanceof Error ? requestError.message : 'Unable to load barbers.');
+      }
+    }
+
+    void loadBarbers();
+    return () => controller.abort();
+  }, [debouncedSearch, serviceId, status]);
+
+  const metrics = data ? [
+    {
+      label: 'Total barbers',
+      value: data.metrics.totalBarbers.toLocaleString('en-US'),
+      detail: `${data.metrics.activeBarbers} active`,
+      tone: 'gold',
+    },
+    {
+      label: 'Available today',
+      value: data.metrics.availableToday.toLocaleString('en-US'),
+      detail: `${data.metrics.availablePercentage.toFixed(1)}% of active barbers`,
+      tone: 'green',
+    },
+    {
+      label: 'Average rating',
+      value: data.metrics.averageRating.toFixed(1),
+      detail: `${data.metrics.totalReviews.toLocaleString('en-US')} reviews`,
+      tone: 'blue',
+    },
+    {
+      label: 'Monthly bookings',
+      value: data.metrics.monthlyBookings.toLocaleString('en-US'),
+      detail: `${formatGrowth(data.metrics.monthlyBookingsGrowth)} vs last month`,
+      tone: 'purple',
+    },
+  ] : [];
+
   return (
     <>
       <AdminPageHeader
@@ -20,46 +179,117 @@ export default function BarbersPage() {
         actions={<button className="admin-primary-button" type="button">+ Add barber</button>}
       />
 
-      <section className="admin-module-metrics admin-module-metrics--four">
-        {[
-          ['Total barbers', '20', '18 active', 'gold'],
-          ['Available today', '14', '77.8%', 'green'],
-          ['Average rating', '4.8', '1,264 reviews', 'blue'],
-          ['Monthly bookings', '741', '+9.4%', 'purple'],
-        ].map(([label, value, change, tone]) => (
-          <article className={`admin-module-metric is-${tone}`} key={label}><span>{label}</span><strong>{value}</strong><em>{change}</em></article>
-        ))}
-      </section>
+      {error && <section className="admin-panel admin-module-panel"><strong>{error}</strong></section>}
+      {!data && !error && <section className="admin-panel admin-module-panel"><span>Loading barbers...</span></section>}
 
-      <section className="admin-toolbar admin-toolbar--standalone">
-        <div className="admin-toolbar__search"><input placeholder="Search barbers..." type="search" /></div>
-        <div className="admin-toolbar__filters">
-          <select defaultValue="All statuses"><option>All statuses</option><option>Active</option><option>Inactive</option></select>
-          <select defaultValue="All specialties"><option>All specialties</option><option>Haircut</option><option>Beard</option><option>Color</option><option>Perm</option></select>
-          <button className="admin-secondary-button" type="button">Manage schedules</button>
-        </div>
-      </section>
+      {data && !error && (
+        <>
+          <section className="admin-module-metrics admin-module-metrics--four">
+            {metrics.map((metric) => (
+              <article className={`admin-module-metric is-${metric.tone}`} key={metric.label}>
+                <span>{metric.label}</span>
+                <strong>{metric.value}</strong>
+                <em>{metric.detail}</em>
+              </article>
+            ))}
+          </section>
 
-      <section className="admin-barber-card-grid">
-        {barbers.map((barber) => (
-          <article className="admin-panel admin-barber-card" key={barber.name}>
-            <div className="admin-barber-card__top">
-              <span className="admin-barber-card__avatar">{barber.initials}</span>
-              <span className={`admin-status-badge is-${barber.status.toLowerCase()}`}>{barber.status}</span>
+          <section className="admin-toolbar admin-toolbar--standalone">
+            <div className="admin-toolbar__search">
+              <input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search by name, phone, or service..."
+                type="search"
+              />
             </div>
-            <h2>{barber.name}</h2>
-            <p>{barber.role}</p>
-            <div className="admin-specialty-list">{barber.specialties.map((item) => <span key={item}>{item}</span>)}</div>
-            <div className="admin-barber-card__stats">
-              <div><AdminIcon name="star" size={15} /><strong>{barber.rating}</strong><span>Rating</span></div>
-              <div><strong>{barber.bookings}</strong><span>Bookings</span></div>
-              <div><strong>{barber.revenue}</strong><span>Revenue</span></div>
+
+            <div className="admin-toolbar__filters">
+              <select value={status} onChange={(event) => setStatus(event.target.value as BarberStatusFilter)}>
+                <option value="all">All statuses</option>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+              </select>
+
+              <select value={serviceId} onChange={(event) => setServiceId(event.target.value)}>
+                <option value="">All services</option>
+                {data.services.map((service) => <option key={service.id} value={service.id}>{service.name}</option>)}
+              </select>
+
+              <button className="admin-secondary-button" type="button" onClick={() => navigate('/administrator/schedules')}>
+                Manage schedules
+              </button>
             </div>
-            <div className="admin-barber-card__availability"><span>Current status</span><strong>{barber.availability}</strong></div>
-            <div className="admin-card-actions"><button type="button">View profile</button><button type="button">Edit</button><button type="button">Schedule</button></div>
-          </article>
-        ))}
-      </section>
+          </section>
+
+          {data.items.length ? (
+            <section className="admin-barber-card-grid">
+              {data.items.map((barber) => (
+                <article className="admin-panel admin-barber-card" key={barber.id}>
+                  <div className="admin-barber-card__top">
+                    <BarberAvatar barber={barber} />
+                    <span className={`admin-status-badge is-${barber.isActive ? 'active' : 'inactive'}`}>
+                      {barber.isActive ? 'Active' : 'Inactive'}
+                    </span>
+                  </div>
+
+                  <h2>{barber.displayName}</h2>
+                  <p>
+                    {barber.experienceYears
+                      ? `${barber.experienceYears} ${barber.experienceYears === 1 ? 'year' : 'years'} experience`
+                      : 'New barber'}
+                  </p>
+
+                  <div className="admin-specialty-list">
+                    {barber.assignedServices.length
+                      ? barber.assignedServices.map((service) => <span key={service.id}>{service.name}</span>)
+                      : <span>No services assigned</span>}
+                  </div>
+
+                  <div className="admin-barber-card__stats">
+                    <div>
+                      <AdminIcon name="star" size={15} />
+                      <strong>{barber.ratingAverage.toFixed(1)}</strong>
+                      <span>{barber.reviewCount} reviews</span>
+                    </div>
+
+                    <div>
+                      <strong>{barber.monthlyBookings}</strong>
+                      <span>Bookings this month</span>
+                    </div>
+
+                    <div>
+                      <strong>{formatCurrency(barber.monthlyRevenue, data.currency)}</strong>
+                      <span>Net revenue</span>
+                    </div>
+                  </div>
+
+                  <div className="admin-barber-card__availability">
+                    <span>Current status</span>
+
+                    <div>
+                      <strong className={`is-${barber.availability.replace('_', '-')}`}>
+                        {availabilityLabels[barber.availability]}
+                      </strong>
+                      <small>{barber.todayShift}</small>
+                    </div>
+                  </div>
+
+                  <div className="admin-card-actions">
+                    <button type="button">View profile</button>
+                    <button type="button">Edit</button>
+                    <button type="button">Schedule</button>
+                  </div>
+                </article>
+              ))}
+            </section>
+          ) : (
+            <section className="admin-panel admin-module-panel">
+              <span>No barbers match the current filters.</span>
+            </section>
+          )}
+        </>
+      )}
     </>
   );
 }

@@ -3,7 +3,7 @@ import cors from "cors";
 import express, {type NextFunction,type Request,type Response} from "express";
 import { env } from "./config/env";
 import { supabase } from "./lib/supabase";
-import adminRouter from "./modules/admin/adminRoute";
+import adminRouter from "./modules/admin/admin.route";
 import { authRouter } from "./modules/auth/auth.route";
 import { publicRouter } from "./modules/public/public.route";
 export const app = express();
