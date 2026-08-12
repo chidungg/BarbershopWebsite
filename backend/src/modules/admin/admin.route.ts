@@ -2,16 +2,19 @@ import { Router, type Request, type Response } from "express";
 import { createSupabaseAdminClient } from "../../lib/supabase";
 import { getRoleByUser, isAdmin } from "../../middlewares/auth.middleware";
 import { getRevenueData, isRevenuePeriod } from "./adminRevenue.service";
-import { getAdminUsers, isUserSort, isUserStatusFilter } from "./adminUsers.service";
+import { getAdminUserDetails, getAdminUsers, getAdminUsersCsv, isUserGender, isUserSort, isUserStatusFilter, setAdminUserBlocked, updateAdminUser } from "./adminUsers.service";
 import { getAdminBarbers, isBarberStatusFilter } from "./adminBarbers.service";
 import { getAdminAppointments, isAppointmentStatusFilter, isValidAppointmentDate } from "./adminAppointments.service";
 import { getAdminPayments, isPaymentMethodFilter, isPaymentStatusFilter, isValidPaymentDate } from "./adminPayments.service";
 import { getAdminServices, isServiceStatusFilter } from "./adminServices.service";
 import {getAdminSchedules, getScheduleWeekStart, isValidScheduleDate,} from "./adminSchedules.service";
 import { getAdminReports, isReportPeriod } from "./adminReports.service";
+import { getAdminDashboard, isDashboardPeriod } from "./adminDashboard.service";
+import { getAdminSettings, updateAdminSettings, type AdminSettingsInput } from "./adminSettings.service";
 
 const adminRouter = Router();
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 adminRouter.use(getRoleByUser);
 adminRouter.use(isAdmin);
 
@@ -158,6 +161,93 @@ adminRouter.get("/users", async (request: Request, response: Response) => {
       code: "admin_users_query_failed",
       message: "Unable to load users",
     });
+  }
+});
+adminRouter.get("/users/export", async (request: Request, response: Response) => {
+  const query = typeof request.query.query === "string" ? request.query.query.trim() : "";
+  const status = typeof request.query.status === "string" ? request.query.status.toLowerCase() : "all";
+  const sort = typeof request.query.sort === "string" ? request.query.sort.toLowerCase() : "newest";
+
+  if (!isUserStatusFilter(status) || !isUserSort(sort)) {
+    return response.status(400).json({ success: false, code: "invalid_user_export_filter", message: "Invalid user export filters" });
+  }
+
+  try {
+    const csv = await getAdminUsersCsv({ query, status, sort });
+    response.setHeader("Content-Type", "text/csv; charset=utf-8");
+    response.setHeader("Content-Disposition", `attachment; filename="users-${new Date().toISOString().slice(0, 10)}.csv"`);
+    return response.status(200).send(csv);
+  } catch (error) {
+    console.error("Export administrator users error:", error);
+    return response.status(500).json({ success: false, code: "admin_users_export_failed", message: "Unable to export users" });
+  }
+});
+
+adminRouter.get("/users/:userId", async (request: Request, response: Response) => {
+  const userId = Array.isArray(request.params.userId) ? request.params.userId[0] ?? "" : request.params.userId ?? "";
+  if (!UUID_PATTERN.test(userId)) return response.status(400).json({ success: false, code: "invalid_user_id", message: "Invalid user id" });
+
+  try {
+    const data = await getAdminUserDetails(userId);
+    if (!data) return response.status(404).json({ success: false, code: "user_not_found", message: "User not found" });
+    return response.status(200).json({ success: true, code: "admin_user_loaded", data });
+  } catch (error) {
+    console.error("Get administrator user error:", error);
+    return response.status(500).json({ success: false, code: "admin_user_query_failed", message: "Unable to load user" });
+  }
+});
+
+adminRouter.patch("/users/:userId", async (request: Request, response: Response) => {
+  const userId = Array.isArray(request.params.userId) ? request.params.userId[0] ?? "" : request.params.userId ?? "";
+  const fullName = typeof request.body.fullName === "string" ? request.body.fullName.trim() : "";
+  const phone = typeof request.body.phone === "string" ? request.body.phone.trim().replace(/[\s.-]/g, "") : "";
+  const dateOfBirth = typeof request.body.dateOfBirth === "string" && request.body.dateOfBirth.trim() ? request.body.dateOfBirth.trim() : null;
+  const genderValue = typeof request.body.gender === "string" ? request.body.gender.trim().toLowerCase() : "";
+  const gender = genderValue ? (isUserGender(genderValue) ? genderValue : undefined) : null;
+  const notes = typeof request.body.notes === "string" ? request.body.notes.trim() : "";
+
+  if (!UUID_PATTERN.test(userId)) return response.status(400).json({ success: false, code: "invalid_user_id", message: "Invalid user id" });
+  if (fullName.length < 2 || fullName.length > 100) return response.status(400).json({ success: false, code: "invalid_full_name", message: "Full name must contain between 2 and 100 characters" });
+  if (phone && !/^(?:\+84|0)\d{9}$/.test(phone)) return response.status(400).json({ success: false, code: "invalid_phone", message: "Phone number is invalid" });
+  if (gender === undefined) return response.status(400).json({ success: false, code: "invalid_gender", message: "Gender is invalid" });
+  if (dateOfBirth && (!/^\d{4}-\d{2}-\d{2}$/.test(dateOfBirth) || Number.isNaN(Date.parse(dateOfBirth)) || new Date(`${dateOfBirth}T00:00:00Z`) > new Date())) {
+    return response.status(400).json({ success: false, code: "invalid_date_of_birth", message: "Date of birth is invalid" });
+  }
+  if (notes.length > 2000) return response.status(400).json({ success: false, code: "notes_too_long", message: "Notes must not exceed 2000 characters" });
+
+  try {
+    const data = await updateAdminUser(userId, { fullName, phone, dateOfBirth, gender, notes });
+    if (!data) return response.status(404).json({ success: false, code: "user_not_found", message: "User not found" });
+    return response.status(200).json({ success: true, code: "admin_user_updated", message: "User updated successfully", data });
+  } catch (error) {
+    console.error("Update administrator user error:", error);
+    if (typeof error === "object" && error && "code" in error && error.code === "23505") {
+      return response.status(409).json({ success: false, code: "phone_already_exists", message: "Phone number is already in use" });
+    }
+    return response.status(500).json({ success: false, code: "admin_user_update_failed", message: "Unable to update user" });
+  }
+});
+
+adminRouter.patch("/users/:userId/status", async (request: Request, response: Response) => {
+  const userId = Array.isArray(request.params.userId) ? request.params.userId[0] ?? "" : request.params.userId ?? "";
+  const blocked = request.body.blocked;
+
+  if (!UUID_PATTERN.test(userId)) return response.status(400).json({ success: false, code: "invalid_user_id", message: "Invalid user id" });
+  if (typeof blocked !== "boolean") return response.status(400).json({ success: false, code: "invalid_block_status", message: "Blocked must be true or false" });
+
+  try {
+    const data = await setAdminUserBlocked(userId, blocked);
+    if (!data) return response.status(404).json({ success: false, code: "user_not_found", message: "User not found" });
+
+    return response.status(200).json({
+      success: true,
+      code: blocked ? "admin_user_blocked" : "admin_user_unblocked",
+      message: blocked ? "User blocked successfully" : "User unblocked successfully",
+      data,
+    });
+  } catch (error) {
+    console.error("Change administrator user status error:", error);
+    return response.status(500).json({ success: false, code: "admin_user_status_update_failed", message: "Unable to change user status" });
   }
 });
 
@@ -371,6 +461,102 @@ adminRouter.get("/reports", async (request: Request, response: Response) => {
       success: false,
       code: "admin_reports_query_failed",
       message: "Unable to load reports",
+    });
+  }
+});
+
+adminRouter.get("/dashboard", async (request: Request, response: Response) => {
+  const period = typeof request.query.period === "string" ? request.query.period.toLowerCase() : "month";
+
+  if (!isDashboardPeriod(period)) {
+    return response.status(400).json({
+      success: false,
+      code: "invalid_dashboard_period",
+      message: "Period must be week, month, quarter, or year",
+    });
+  }
+
+  try {
+    const data = await getAdminDashboard(period);
+    return response.status(200).json({ success: true, code: "admin_dashboard_loaded", data });
+  } catch (error) {
+    console.error("Get administrator dashboard error:", error);
+    return response.status(500).json({
+      success: false,
+      code: "admin_dashboard_query_failed",
+      message: "Unable to load dashboard",
+    });
+  }
+});
+
+adminRouter.get("/settings", async (_request: Request, response: Response) => {
+  try {
+    const data = await getAdminSettings();
+    return response.status(200).json({ success: true, code: "admin_settings_loaded", data });
+  } catch (error) {
+    console.error("Get administrator settings error:", error);
+    return response.status(500).json({
+      success: false,
+      code: "admin_settings_query_failed",
+      message: "Unable to load settings",
+    });
+  }
+});
+
+adminRouter.put("/settings", async (request: Request, response: Response) => {
+  const body = request.body as Partial<AdminSettingsInput>;
+
+  const input: AdminSettingsInput = {
+    shopName: typeof body.shopName === "string" ? body.shopName.trim() : "",
+    address: typeof body.address === "string" ? body.address.trim() : "",
+    phone: typeof body.phone === "string" ? body.phone.trim() : "",
+    email: typeof body.email === "string" ? body.email.trim() : "",
+    timezone: typeof body.timezone === "string" ? body.timezone.trim() : "",
+    currency: typeof body.currency === "string" ? body.currency.trim().toUpperCase() : "",
+    bookingAdvanceDays: Number(body.bookingAdvanceDays),
+    cancellationNoticeHours: Number(body.cancellationNoticeHours),
+    defaultSlotMinutes: Number(body.defaultSlotMinutes),
+  };
+
+  if (!input.shopName) {
+    return response.status(400).json({ success: false, code: "invalid_shop_name", message: "Business name is required" });
+  }
+
+  if (input.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email)) {
+    return response.status(400).json({ success: false, code: "invalid_shop_email", message: "Business email is invalid" });
+  }
+
+  if (!/^[A-Z]{3}$/.test(input.currency)) {
+    return response.status(400).json({ success: false, code: "invalid_currency", message: "Currency must contain exactly 3 letters" });
+  }
+
+  try {
+    new Intl.DateTimeFormat("en", { timeZone: input.timezone }).format(new Date());
+  } catch {
+    return response.status(400).json({ success: false, code: "invalid_timezone", message: "Timezone is invalid" });
+  }
+
+  if (!Number.isInteger(input.bookingAdvanceDays) || input.bookingAdvanceDays < 1 || input.bookingAdvanceDays > 365) {
+    return response.status(400).json({ success: false, code: "invalid_booking_advance", message: "Booking advance days must be between 1 and 365" });
+  }
+
+  if (!Number.isInteger(input.cancellationNoticeHours) || input.cancellationNoticeHours < 0 || input.cancellationNoticeHours > 168) {
+    return response.status(400).json({ success: false, code: "invalid_cancellation_notice", message: "Cancellation notice must be between 0 and 168 hours" });
+  }
+
+  if (!Number.isInteger(input.defaultSlotMinutes) || input.defaultSlotMinutes < 5 || input.defaultSlotMinutes > 240) {
+    return response.status(400).json({ success: false, code: "invalid_slot_minutes", message: "Default slot must be between 5 and 240 minutes" });
+  }
+
+  try {
+    const data = await updateAdminSettings(input);
+    return response.status(200).json({ success: true, code: "admin_settings_updated", message: "Settings updated successfully", data });
+  } catch (error) {
+    console.error("Update administrator settings error:", error);
+    return response.status(500).json({
+      success: false,
+      code: "admin_settings_update_failed",
+      message: "Unable to update settings",
     });
   }
 });

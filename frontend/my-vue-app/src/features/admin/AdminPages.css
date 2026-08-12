@@ -848,3 +848,57 @@
 .admin-report-card__value + span {
   margin: 4px 0 13px;
 }
+
+.admin-settings-message {
+  margin-bottom: 16px;
+  padding: 11px 14px;
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+  font-size: 10px;
+}
+
+.admin-settings-message.is-success {
+  color: var(--admin-green);
+  background: var(--admin-green-soft);
+}
+
+.admin-settings-message.is-error {
+  color: var(--admin-red);
+  background: var(--admin-red-soft);
+}
+
+.admin-form-grid label small {
+  display: block;
+  margin-top: 5px;
+  color: var(--admin-muted);
+  font-size: 8px;
+}
+
+.admin-primary-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+/* Users management actions */
+.admin-user-modal-backdrop { position: fixed; inset: 0; z-index: 1000; display: grid; padding: 24px; background: rgb(20 18 16 / 52%); place-items: center; }
+.admin-user-modal { width: min(680px, 100%); max-height: calc(100vh - 48px); overflow: auto; background: var(--admin-surface); border: 1px solid var(--admin-line); border-radius: 12px; box-shadow: 0 24px 70px rgb(0 0 0 / 24%); }
+.admin-user-modal > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 20px 22px; border-bottom: 1px solid var(--admin-line); }
+.admin-user-modal > header span { color: var(--admin-gold-dark); font-size: 8px; font-weight: 800; letter-spacing: .12em; }
+.admin-user-modal > header h2 { margin: 4px 0 0; font-family: 'Cormorant Garamond', serif; font-size: 24px; }
+.admin-user-modal > header > button { width: 32px; height: 32px; color: var(--admin-muted); background: transparent; border: 0; cursor: pointer; font-size: 24px; line-height: 1; }
+.admin-user-modal__loading, .admin-user-modal__error { padding: 24px 22px; font-size: 10px; }
+.admin-user-modal__error { color: var(--admin-red); background: var(--admin-red-soft); }
+.admin-user-details { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; padding: 20px 22px; background: var(--admin-line); }
+.admin-user-details > div { display: grid; gap: 6px; min-height: 68px; padding: 14px; background: var(--admin-surface); }
+.admin-user-details span { color: var(--admin-muted); font-size: 8px; font-weight: 700; }
+.admin-user-details strong { font-size: 10px; line-height: 1.5; overflow-wrap: anywhere; }
+.admin-user-details__full { grid-column: 1 / -1; }
+.admin-user-edit-form { padding: 20px 22px 22px; }
+.admin-user-modal__actions { display: flex !important; flex-direction: row !important; justify-content: flex-end; align-items: center; gap: 9px !important; min-height: auto !important; padding: 16px 0 0 !important; background: transparent !important; }
+.admin-row-actions button:disabled, .admin-secondary-button:disabled, .admin-primary-button:disabled { cursor: not-allowed; opacity: .55; }
+
+@media (max-width: 600px) {
+  .admin-user-modal-backdrop { padding: 12px; }
+  .admin-user-details { grid-template-columns: 1fr; }
+  .admin-user-details__full { grid-column: auto; }
+}

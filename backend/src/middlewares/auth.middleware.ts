@@ -46,6 +46,7 @@ export async function getRoleByEmail(
     .from("accounts")
     .select("role")
     .eq("email", normalizedEmail)
+    .eq("status", "active")
     .maybeSingle();
   if (error) {
     console.error("Get role by email error:", {

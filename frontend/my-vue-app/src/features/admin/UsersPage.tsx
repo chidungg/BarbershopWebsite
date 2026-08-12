@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type SubmitEvent } from 'react';
 import AdminPageHeader from './AdminPageHeader';
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000/api').replace(/\/$/, '');
@@ -6,6 +6,42 @@ const PAGE_SIZE = 10;
 
 type UserStatusFilter = 'all' | 'active' | 'inactive' | 'blocked';
 type UserSort = 'newest' | 'oldest' | 'spending';
+type UserGender = 'male' | 'female' | 'other' | 'prefer_not_to_say';
+
+type UserDetail = {
+  id: string;
+  email: string;
+  status: string;
+  lastLoginAt: string | null;
+  joinedAt: string;
+  updatedAt: string;
+  fullName: string;
+  phone: string;
+  dateOfBirth: string | null;
+  gender: UserGender | null;
+  avatarUrl: string | null;
+  notes: string;
+};
+
+type UserDetailResponse = {
+  success: boolean;
+  message?: string;
+  data?: UserDetail;
+};
+
+type StatusResponse = {
+  success: boolean;
+  message?: string;
+  data?: { id: string; status: string };
+};
+
+type EditForm = {
+  fullName: string;
+  phone: string;
+  dateOfBirth: string;
+  gender: UserGender | '';
+  notes: string;
+};
 
 type UserRow = {
   id: string;
@@ -64,6 +100,16 @@ function formatDate(value: string) {
   return new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(value));
 }
 
+function formatDateTime(value: string | null) {
+  return value ? new Intl.DateTimeFormat('en-GB', {
+    day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+  }).format(new Date(value)) : 'Never';
+}
+
+function formatGender(gender: UserGender | null) {
+  return gender ? gender.split('_').map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ') : 'Not specified';
+}
+
 function formatStatus(status: string) {
   return status ? status.charAt(0).toUpperCase() + status.slice(1) : "Unknown";
 }
@@ -102,6 +148,14 @@ export default function UsersPage() {
   const [page, setPage] = useState(1);
   const [data, setData] = useState<UsersData | null>(null);
   const [error, setError] = useState('');
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [modalMode, setModalMode] = useState<'view' | 'edit' | null>(null);
+  const [selectedUser, setSelectedUser] = useState<UserDetail | null>(null);
+  const [editForm, setEditForm] = useState<EditForm>({ fullName: '', phone: '', dateOfBirth: '', gender: '', notes: '' });
+  const [modalError, setModalError] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [changingStatusId, setChangingStatusId] = useState('');
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -149,7 +203,126 @@ export default function UsersPage() {
 
     void loadUsers();
     return () => controller.abort();
-  }, [debouncedQuery, page, sort, status]);
+  }, [debouncedQuery, page, sort, status, refreshKey]);
+  async function openUser(userId: string, mode: 'view' | 'edit') {
+  setModalMode(mode);
+  setSelectedUser(null);
+  setModalError('');
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/administrator/users/${userId}`, {
+      credentials: 'include',
+      headers: { Accept: 'application/json' },
+    });
+    const payload = (await response.json()) as UserDetailResponse;
+
+    if (!response.ok || !payload.success || !payload.data) throw new Error(payload.message ?? 'Unable to load user.');
+
+    setSelectedUser(payload.data);
+    setEditForm({
+      fullName: payload.data.fullName,
+      phone: payload.data.phone,
+      dateOfBirth: payload.data.dateOfBirth ?? '',
+      gender: payload.data.gender ?? '',
+      notes: payload.data.notes,
+    });
+  } catch (requestError) {
+    setModalError(requestError instanceof Error ? requestError.message : 'Unable to load user.');
+  }
+}
+
+async function saveUser(event: SubmitEvent<HTMLFormElement>) {
+  event.preventDefault();
+  if (!selectedUser) return;
+
+  setSaving(true);
+  setModalError('');
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/administrator/users/${selectedUser.id}`, {
+      method: 'PATCH',
+      credentials: 'include',
+      headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...editForm,
+        dateOfBirth: editForm.dateOfBirth || null,
+        gender: editForm.gender || null,
+      }),
+    });
+    const payload = (await response.json()) as UserDetailResponse;
+
+    if (!response.ok || !payload.success || !payload.data) throw new Error(payload.message ?? 'Unable to update user.');
+
+    setSelectedUser(payload.data);
+    setModalMode('view');
+    setRefreshKey((value) => value + 1);
+  } catch (requestError) {
+    setModalError(requestError instanceof Error ? requestError.message : 'Unable to update user.');
+  } finally {
+    setSaving(false);
+  }
+}
+
+async function toggleBlock(user: UserRow) {
+  const blocked = user.status !== 'inactive';
+  if (!window.confirm(`${blocked ? 'Block' : 'Unblock'} ${user.name}?`)) return;
+
+  setChangingStatusId(user.id);
+  setError('');
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/administrator/users/${user.id}/status`, {
+      method: 'PATCH',
+      credentials: 'include',
+      headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ blocked }),
+    });
+    const payload = (await response.json()) as StatusResponse;
+
+    if (!response.ok || !payload.success) throw new Error(payload.message ?? 'Unable to change user status.');
+
+    if (selectedUser?.id === user.id) {
+      setSelectedUser({ ...selectedUser, status: blocked ? 'inactive' : 'active' });
+    }
+
+    setRefreshKey((value) => value + 1);
+  } catch (requestError) {
+    setError(requestError instanceof Error ? requestError.message : 'Unable to change user status.');
+  } finally {
+    setChangingStatusId('');
+  }
+}
+
+async function exportCsv() {
+  setExporting(true);
+  setError('');
+
+  try {
+    const params = new URLSearchParams({ query: debouncedQuery, status, sort });
+    const response = await fetch(`${API_BASE_URL}/administrator/users/export?${params}`, {
+      credentials: 'include',
+      headers: { Accept: 'text/csv,application/json' },
+    });
+
+    if (!response.ok) {
+      const payload = (await response.json()) as { message?: string };
+      throw new Error(payload.message ?? 'Unable to export users.');
+    }
+
+    const url = URL.createObjectURL(await response.blob());
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `users-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  } catch (requestError) {
+    setError(requestError instanceof Error ? requestError.message : 'Unable to export users.');
+  } finally {
+    setExporting(false);
+  }
+}
 
   const metrics = data
     ? [
@@ -218,7 +391,9 @@ export default function UsersPage() {
                   <option value="spending">Highest spending</option>
                 </select>
 
-                <button className="admin-secondary-button" type="button">Export CSV</button>
+                <button className="admin-secondary-button" type="button" disabled={exporting} onClick={() => void exportCsv()}>
+                  {exporting ? 'Exporting...' : 'Export CSV'}
+                </button>
               </div>
             </div>
 
@@ -255,9 +430,11 @@ export default function UsersPage() {
 
                         <td>
                           <div className="admin-row-actions">
-                            <button type="button">View</button>
-                            <button type="button">Edit</button>
-                            <button className="is-danger" type="button">{user.status === 'blocked' ? 'Unblock' : 'Block'}</button>
+                            <button type="button" onClick={() => void openUser(user.id, 'view')}>View</button>
+                            <button type="button" onClick={() => void openUser(user.id, 'edit')}>Edit</button>
+                            <button className="is-danger" type="button" disabled={changingStatusId === user.id} onClick={() => void toggleBlock(user)}>
+                              {changingStatusId === user.id ? 'Saving...' : user.status === 'inactive' ? 'Unblock' : 'Block'}
+                            </button>
                           </div>
                         </td>
                       </tr>
@@ -297,6 +474,88 @@ export default function UsersPage() {
             </div>
           </section>
         </>
+      )}
+      {modalMode && (
+        <div className="admin-user-modal-backdrop" onMouseDown={(event) => {
+          if (event.target === event.currentTarget) setModalMode(null);
+        }}>
+          <section className="admin-user-modal" role="dialog" aria-modal="true" aria-label={modalMode === 'view' ? 'User details' : 'Edit user'}>
+            <header>
+              <div>
+                <span>{modalMode === 'view' ? 'USER DETAILS' : 'EDIT USER'}</span>
+                <h2>{selectedUser?.fullName || selectedUser?.email || 'Loading user...'}</h2>
+              </div>
+              <button type="button" onClick={() => setModalMode(null)}>×</button>
+            </header>
+
+            {modalError && <div className="admin-user-modal__error">{modalError}</div>}
+            {!selectedUser && !modalError && <div className="admin-user-modal__loading">Loading user...</div>}
+
+            {selectedUser && modalMode === 'view' && (
+              <div className="admin-user-details">
+                <div><span>Full name</span><strong>{selectedUser.fullName || 'Not provided'}</strong></div>
+                <div><span>Email</span><strong>{selectedUser.email || 'Not provided'}</strong></div>
+                <div><span>Phone</span><strong>{selectedUser.phone || 'Not provided'}</strong></div>
+                <div><span>Status</span><strong>{formatStatus(selectedUser.status)}</strong></div>
+                <div><span>Date of birth</span><strong>{selectedUser.dateOfBirth ? formatDate(selectedUser.dateOfBirth) : 'Not provided'}</strong></div>
+                <div><span>Gender</span><strong>{formatGender(selectedUser.gender)}</strong></div>
+                <div><span>Joined</span><strong>{formatDate(selectedUser.joinedAt)}</strong></div>
+                <div><span>Last login</span><strong>{formatDateTime(selectedUser.lastLoginAt)}</strong></div>
+                <div className="admin-user-details__full"><span>Notes</span><strong>{selectedUser.notes || 'No notes'}</strong></div>
+
+                <div className="admin-user-modal__actions admin-user-details__full">
+                  <button className="admin-secondary-button" type="button" onClick={() => setModalMode(null)}>Close</button>
+                  <button className="admin-primary-button" type="button" onClick={() => setModalMode('edit')}>Edit user</button>
+                </div>
+              </div>
+            )}
+
+            {selectedUser && modalMode === 'edit' && (
+              <form className="admin-form-grid admin-form-grid--two admin-user-edit-form" onSubmit={saveUser}>
+                <label>
+                  <span>Full name</span>
+                  <input required minLength={2} maxLength={100} value={editForm.fullName} onChange={(event) => setEditForm({ ...editForm, fullName: event.target.value })} />
+                </label>
+
+                <label>
+                  <span>Email</span>
+                  <input value={selectedUser.email} readOnly disabled />
+                </label>
+
+                <label>
+                  <span>Phone</span>
+                  <input value={editForm.phone} onChange={(event) => setEditForm({ ...editForm, phone: event.target.value })} placeholder="0901234567" />
+                </label>
+
+                <label>
+                  <span>Date of birth</span>
+                  <input type="date" max={new Date().toISOString().slice(0, 10)} value={editForm.dateOfBirth} onChange={(event) => setEditForm({ ...editForm, dateOfBirth: event.target.value })} />
+                </label>
+
+                <label>
+                  <span>Gender</span>
+                  <select value={editForm.gender} onChange={(event) => setEditForm({ ...editForm, gender: event.target.value as UserGender | '' })}>
+                    <option value="">Not specified</option>
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                    <option value="other">Other</option>
+                    <option value="prefer_not_to_say">Prefer not to say</option>
+                  </select>
+                </label>
+
+                <label className="admin-form-field--full">
+                  <span>Notes</span>
+                  <textarea rows={4} maxLength={2000} value={editForm.notes} onChange={(event) => setEditForm({ ...editForm, notes: event.target.value })} />
+                </label>
+
+                <div className="admin-user-modal__actions admin-form-field--full">
+                  <button className="admin-secondary-button" type="button" onClick={() => setModalMode('view')}>Cancel</button>
+                  <button className="admin-primary-button" type="submit" disabled={saving}>{saving ? 'Saving...' : 'Save changes'}</button>
+                </div>
+              </form>
+            )}
+          </section>
+        </div>
       )}
     </>
   );
