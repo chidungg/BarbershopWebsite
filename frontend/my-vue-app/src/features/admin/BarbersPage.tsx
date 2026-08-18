@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type SubmitEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AdminIcon from './AdminIcon';
 import AdminPageHeader from './AdminPageHeader';
@@ -45,6 +45,38 @@ type BarbersData = {
 };
 
 type BarbersResponse = { success: boolean; message?: string; data?: BarbersData };
+
+type CreateBarberForm = {
+  displayName: string;
+  email: string;
+  phone: string;
+  password: string;
+  confirmPassword: string;
+  experienceYears: string;
+  hiredAt: string;
+  avatarUrl: string;
+  bio: string;
+  serviceIds: string[];
+};
+
+type CreateBarberResponse = {
+  success: boolean;
+  message?: string;
+  data?: { id: string; accountId: string };
+};
+
+const EMPTY_BARBER_FORM: CreateBarberForm = {
+  displayName: '',
+  email: '',
+  phone: '',
+  password: '',
+  confirmPassword: '',
+  experienceYears: '0',
+  hiredAt: '',
+  avatarUrl: '',
+  bio: '',
+  serviceIds: [],
+};
 
 const availabilityLabels: Record<BarberAvailability, string> = {
   available: 'Available',
@@ -106,6 +138,11 @@ export default function BarbersPage() {
   const [serviceId, setServiceId] = useState('');
   const [data, setData] = useState<BarbersData | null>(null);
   const [error, setError] = useState('');
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [createForm, setCreateForm] = useState<CreateBarberForm>(EMPTY_BARBER_FORM);
+  const [modalError, setModalError] = useState('');
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => setDebouncedSearch(search.trim()), 300);
@@ -141,7 +178,62 @@ export default function BarbersPage() {
 
     void loadBarbers();
     return () => controller.abort();
-  }, [debouncedSearch, serviceId, status]);
+  }, [debouncedSearch, refreshKey, serviceId, status]);
+
+  function openAddBarber() {
+      setCreateForm(EMPTY_BARBER_FORM);
+      setModalError('');
+      setShowAddModal(true);
+    }
+
+    function toggleService(id: string) {
+      setCreateForm((form) => ({
+        ...form,
+        serviceIds: form.serviceIds.includes(id) ? form.serviceIds.filter((serviceId) => serviceId !== id) : [...form.serviceIds, id],
+      }));
+    }
+
+    async function createBarber(event: SubmitEvent<HTMLFormElement>) {
+      event.preventDefault();
+      setModalError('');
+
+      if (createForm.password !== createForm.confirmPassword) {
+        setModalError('Confirm password does not match.');
+        return;
+      }
+
+      setSaving(true);
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/administrator/barbers`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            displayName: createForm.displayName,
+            email: createForm.email,
+            phone: createForm.phone,
+            password: createForm.password,
+            experienceYears: Number(createForm.experienceYears),
+            hiredAt: createForm.hiredAt || null,
+            avatarUrl: createForm.avatarUrl,
+            bio: createForm.bio,
+            serviceIds: createForm.serviceIds,
+          }),
+        });
+
+        const payload = (await response.json()) as CreateBarberResponse;
+        if (!response.ok || !payload.success) throw new Error(payload.message ?? 'Unable to create barber.');
+
+        setShowAddModal(false);
+        setCreateForm(EMPTY_BARBER_FORM);
+        setRefreshKey((value) => value + 1);
+      } catch (requestError) {
+        setModalError(requestError instanceof Error ? requestError.message : 'Unable to create barber.');
+      } finally {
+        setSaving(false);
+      }
+    }
 
   const metrics = data ? [
     {
@@ -176,7 +268,7 @@ export default function BarbersPage() {
         eyebrow="TEAM MANAGEMENT"
         title="Barbers"
         description="Manage barber profiles, assigned services, schedules, and performance."
-        actions={<button className="admin-primary-button" type="button">+ Add barber</button>}
+        actions={<button className="admin-primary-button" type="button" disabled={!data} onClick={openAddBarber}>+ Add barber</button>}
       />
 
       {error && <section className="admin-panel admin-module-panel"><strong>{error}</strong></section>}
@@ -290,6 +382,87 @@ export default function BarbersPage() {
           )}
         </>
       )}
+      {showAddModal && (
+      <div className="admin-user-modal-backdrop" onMouseDown={(event) => {
+        if (event.target === event.currentTarget) setShowAddModal(false);
+      }}>
+        <section className="admin-user-modal" role="dialog" aria-modal="true" aria-label="Add barber">
+          <header>
+            <div>
+              <span>ADD NEW BARBER</span>
+              <h2>Create barber account</h2>
+            </div>
+            <button type="button" onClick={() => setShowAddModal(false)}>×</button>
+          </header>
+
+          {modalError && <div className="admin-user-modal__error">{modalError}</div>}
+
+          <form className="admin-form-grid admin-form-grid--two admin-user-edit-form" onSubmit={createBarber}>
+            <label>
+              <span>Display name</span>
+              <input required minLength={2} maxLength={120} value={createForm.displayName} onChange={(event) => setCreateForm({ ...createForm, displayName: event.target.value })} />
+            </label>
+
+            <label>
+              <span>Email</span>
+              <input required type="email" value={createForm.email} onChange={(event) => setCreateForm({ ...createForm, email: event.target.value })} />
+            </label>
+
+            <label>
+              <span>Phone</span>
+              <input value={createForm.phone} onChange={(event) => setCreateForm({ ...createForm, phone: event.target.value })} placeholder="0901234567" />
+            </label>
+
+            <label>
+              <span>Experience years</span>
+              <input required type="number" min="0" step="1" value={createForm.experienceYears} onChange={(event) => setCreateForm({ ...createForm, experienceYears: event.target.value })} />
+            </label>
+
+            <label>
+              <span>Temporary password</span>
+              <input required type="password" minLength={8} autoComplete="new-password" value={createForm.password} onChange={(event) => setCreateForm({ ...createForm, password: event.target.value })} />
+            </label>
+
+            <label>
+              <span>Confirm password</span>
+              <input required type="password" minLength={8} autoComplete="new-password" value={createForm.confirmPassword} onChange={(event) => setCreateForm({ ...createForm, confirmPassword: event.target.value })} />
+            </label>
+
+            <label>
+              <span>Hired date</span>
+              <input type="date" max={new Date().toISOString().slice(0, 10)} value={createForm.hiredAt} onChange={(event) => setCreateForm({ ...createForm, hiredAt: event.target.value })} />
+            </label>
+
+            <label>
+              <span>Avatar URL</span>
+              <input type="url" value={createForm.avatarUrl} onChange={(event) => setCreateForm({ ...createForm, avatarUrl: event.target.value })} placeholder="https://..." />
+            </label>
+
+            <div className="admin-form-field--full admin-barber-services-field">
+              <span>Assigned services</span>
+              <div className="admin-barber-service-options">
+                {(data?.services ?? []).map((service) => (
+                  <label key={service.id}>
+                    <input type="checkbox" checked={createForm.serviceIds.includes(service.id)} onChange={() => toggleService(service.id)} />
+                    <span>{service.name}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <label className="admin-form-field--full">
+              <span>Bio</span>
+              <textarea rows={4} maxLength={2000} value={createForm.bio} onChange={(event) => setCreateForm({ ...createForm, bio: event.target.value })} placeholder="Short description about the barber..." />
+            </label>
+
+            <div className="admin-user-modal__actions admin-form-field--full">
+              <button className="admin-secondary-button" type="button" onClick={() => setShowAddModal(false)}>Cancel</button>
+              <button className="admin-primary-button" type="submit" disabled={saving}>{saving ? 'Creating...' : 'Create barber'}</button>
+            </div>
+          </form>
+        </section>
+      </div>
+    )}
     </>
   );
 }

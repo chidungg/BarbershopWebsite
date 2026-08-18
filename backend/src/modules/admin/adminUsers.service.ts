@@ -9,6 +9,16 @@ export type UserSort = (typeof USER_SORTS)[number];
 export type UserGender = (typeof USER_GENDERS)[number];
 export type AdminUserEditInput = { fullName: string; phone: string; dateOfBirth: string | null; gender: UserGender | null; notes: string; };
 
+export type AdminUserCreateInput = {
+  fullName: string;
+  email: string;
+  phone: string;
+  password: string;
+  dateOfBirth: string | null;
+  gender: UserGender | null;
+  notes: string;
+};
+
 type PaymentRow = {
   amount: number | string;
   refunded_amount: number | string | null;
@@ -256,4 +266,49 @@ export async function getAdminUsersCsv(input: Pick<GetUsersInput, "query" | "sta
   ];
 
   return `\uFEFF${rows.map((row) => row.map(csvCell).join(",")).join("\r\n")}`;
+}
+
+export async function createAdminUser(input: AdminUserCreateInput) {
+  const supabaseAdminClient = createSupabaseAdminClient();
+  const email = input.email.trim().toLowerCase();
+  const phone = input.phone.trim();
+
+  const { data: existingEmail, error: emailError } = await supabaseAdminClient.from("accounts").select("id").eq("email", email).maybeSingle();
+  if (emailError) throw emailError;
+  if (existingEmail) return { conflict: "email" as const, user: null };
+
+  if (phone) {
+    const { data: existingPhone, error: phoneError } = await supabaseAdminClient.from("users").select("id").eq("phone", phone).maybeSingle();
+    if (phoneError) throw phoneError;
+    if (existingPhone) return { conflict: "phone" as const, user: null };
+  }
+
+  const { data, error } = await supabaseAdminClient.auth.admin.createUser({
+    email,
+    password: input.password,
+    email_confirm: true,
+    user_metadata: { full_name: input.fullName, phone },
+  });
+
+  if (error) {
+    const message = error.message.toLowerCase();
+    if (message.includes("already") || message.includes("registered")) return { conflict: "email" as const, user: null };
+    throw error;
+  }
+
+  if (!data.user) throw new Error("Supabase did not return the created user");
+
+  const { data: profile, error: profileError } = await supabaseAdminClient.from("users").update({
+    date_of_birth: input.dateOfBirth,
+    gender: input.gender,
+    notes: input.notes || null,
+    updated_at: new Date().toISOString(),
+  }).eq("id", data.user.id).select("id").maybeSingle();
+
+  if (profileError || !profile) {
+    await supabaseAdminClient.auth.admin.deleteUser(data.user.id);
+    throw profileError ?? new Error("Created user profile was not found");
+  }
+
+  return { conflict: null, user: await getAdminUserDetails(data.user.id) };
 }

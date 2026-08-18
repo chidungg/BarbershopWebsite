@@ -42,6 +42,27 @@ type EditForm = {
   gender: UserGender | '';
   notes: string;
 };
+type CreateUserForm = {
+  fullName: string;
+  email: string;
+  phone: string;
+  password: string;
+  confirmPassword: string;
+  dateOfBirth: string;
+  gender: UserGender | '';
+  notes: string;
+};
+
+const EMPTY_CREATE_FORM: CreateUserForm = {
+  fullName: '',
+  email: '',
+  phone: '',
+  password: '',
+  confirmPassword: '',
+  dateOfBirth: '',
+  gender: '',
+  notes: '',
+};
 
 type UserRow = {
   id: string;
@@ -149,9 +170,10 @@ export default function UsersPage() {
   const [data, setData] = useState<UsersData | null>(null);
   const [error, setError] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
-  const [modalMode, setModalMode] = useState<'view' | 'edit' | null>(null);
+  const [modalMode, setModalMode] = useState<'view' | 'edit' | 'add' | null>(null);
   const [selectedUser, setSelectedUser] = useState<UserDetail | null>(null);
   const [editForm, setEditForm] = useState<EditForm>({ fullName: '', phone: '', dateOfBirth: '', gender: '', notes: '' });
+  const [createForm, setCreateForm] = useState<CreateUserForm>(EMPTY_CREATE_FORM);
   const [modalError, setModalError] = useState('');
   const [saving, setSaving] = useState(false);
   const [changingStatusId, setChangingStatusId] = useState('');
@@ -230,6 +252,12 @@ export default function UsersPage() {
     setModalError(requestError instanceof Error ? requestError.message : 'Unable to load user.');
   }
 }
+function openAddUser() {
+  setSelectedUser(null);
+  setCreateForm(EMPTY_CREATE_FORM);
+  setModalError('');
+  setModalMode('add');
+}
 
 async function saveUser(event: SubmitEvent<HTMLFormElement>) {
   event.preventDefault();
@@ -258,6 +286,50 @@ async function saveUser(event: SubmitEvent<HTMLFormElement>) {
     setRefreshKey((value) => value + 1);
   } catch (requestError) {
     setModalError(requestError instanceof Error ? requestError.message : 'Unable to update user.');
+  } finally {
+    setSaving(false);
+  }
+}
+
+async function createUser(event: SubmitEvent<HTMLFormElement>) {
+  event.preventDefault();
+  setModalError('');
+
+  if (createForm.password !== createForm.confirmPassword) {
+    setModalError('Confirm password does not match.');
+    return;
+  }
+
+  setSaving(true);
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/administrator/users`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        fullName: createForm.fullName,
+        email: createForm.email,
+        phone: createForm.phone,
+        password: createForm.password,
+        dateOfBirth: createForm.dateOfBirth || null,
+        gender: createForm.gender || null,
+        notes: createForm.notes,
+      }),
+    });
+
+    const payload = (await response.json()) as UserDetailResponse;
+
+    if (!response.ok || !payload.success || !payload.data) {
+      throw new Error(payload.message ?? 'Unable to create user.');
+    }
+
+    setModalMode(null);
+    setCreateForm(EMPTY_CREATE_FORM);
+    setPage(1);
+    setRefreshKey((value) => value + 1);
+  } catch (requestError) {
+    setModalError(requestError instanceof Error ? requestError.message : 'Unable to create user.');
   } finally {
     setSaving(false);
   }
@@ -343,7 +415,7 @@ async function exportCsv() {
         eyebrow="CUSTOMER MANAGEMENT"
         title="Users"
         description="Manage customer accounts, activity, booking history, and account status."
-        actions={<button className="admin-primary-button" type="button">+ Add new user</button>}
+        actions={<button className="admin-primary-button" type="button" onClick={openAddUser}>+ Add new user</button>}
       />
 
       {error && <section className="admin-panel admin-module-panel"><strong>{error}</strong></section>}
@@ -482,15 +554,68 @@ async function exportCsv() {
           <section className="admin-user-modal" role="dialog" aria-modal="true" aria-label={modalMode === 'view' ? 'User details' : 'Edit user'}>
             <header>
               <div>
-                <span>{modalMode === 'view' ? 'USER DETAILS' : 'EDIT USER'}</span>
-                <h2>{selectedUser?.fullName || selectedUser?.email || 'Loading user...'}</h2>
+                <span>{modalMode === 'add' ? 'ADD NEW USER' : modalMode === 'view' ? 'USER DETAILS' : 'EDIT USER'}</span>
+                <h2>{modalMode === 'add' ? 'Create customer account' : selectedUser?.fullName || selectedUser?.email || 'Loading user...'}</h2>
               </div>
               <button type="button" onClick={() => setModalMode(null)}>×</button>
             </header>
 
             {modalError && <div className="admin-user-modal__error">{modalError}</div>}
-            {!selectedUser && !modalError && <div className="admin-user-modal__loading">Loading user...</div>}
+            {modalMode !== 'add' && !selectedUser && !modalError && <div className="admin-user-modal__loading">Loading user...</div>}
+            {modalMode === 'add' && (
+              <form className="admin-form-grid admin-form-grid--two admin-user-edit-form" onSubmit={createUser}>
+                <label>
+                  <span>Full name</span>
+                  <input required minLength={2} maxLength={100} value={createForm.fullName} onChange={(event) => setCreateForm({ ...createForm, fullName: event.target.value })} />
+                </label>
 
+                <label>
+                  <span>Email</span>
+                  <input required type="email" value={createForm.email} onChange={(event) => setCreateForm({ ...createForm, email: event.target.value })} />
+                </label>
+
+                <label>
+                  <span>Phone</span>
+                  <input value={createForm.phone} onChange={(event) => setCreateForm({ ...createForm, phone: event.target.value })} placeholder="0901234567" />
+                </label>
+
+                <label>
+                  <span>Date of birth</span>
+                  <input type="date" max={new Date().toISOString().slice(0, 10)} value={createForm.dateOfBirth} onChange={(event) => setCreateForm({ ...createForm, dateOfBirth: event.target.value })} />
+                </label>
+
+                <label>
+                  <span>Temporary password</span>
+                  <input required type="password" minLength={8} autoComplete="new-password" value={createForm.password} onChange={(event) => setCreateForm({ ...createForm, password: event.target.value })} />
+                </label>
+
+                <label>
+                  <span>Confirm password</span>
+                  <input required type="password" minLength={8} autoComplete="new-password" value={createForm.confirmPassword} onChange={(event) => setCreateForm({ ...createForm, confirmPassword: event.target.value })} />
+                </label>
+
+                <label>
+                  <span>Gender</span>
+                  <select value={createForm.gender} onChange={(event) => setCreateForm({ ...createForm, gender: event.target.value as UserGender | '' })}>
+                    <option value="">Not specified</option>
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                    <option value="other">Other</option>
+                    <option value="prefer_not_to_say">Prefer not to say</option>
+                  </select>
+                </label>
+
+                <label className="admin-form-field--full">
+                  <span>Notes</span>
+                  <textarea rows={4} maxLength={2000} value={createForm.notes} onChange={(event) => setCreateForm({ ...createForm, notes: event.target.value })} />
+                </label>
+
+                <div className="admin-user-modal__actions admin-form-field--full">
+                  <button className="admin-secondary-button" type="button" onClick={() => setModalMode(null)}>Cancel</button>
+                  <button className="admin-primary-button" type="submit" disabled={saving}>{saving ? 'Creating...' : 'Create user'}</button>
+                </div>
+              </form>
+            )}
             {selectedUser && modalMode === 'view' && (
               <div className="admin-user-details">
                 <div><span>Full name</span><strong>{selectedUser.fullName || 'Not provided'}</strong></div>

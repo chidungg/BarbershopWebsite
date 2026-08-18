@@ -35,6 +35,18 @@ type PaymentRow = {
 type GetBarbersInput = { search: string; status: BarberStatusFilter; serviceId: string };
 type Shift = { start: string; end: string };
 
+export type AdminBarberCreateInput = {
+  displayName: string;
+  email: string;
+  phone: string;
+  password: string;
+  bio: string;
+  avatarUrl: string;
+  experienceYears: number;
+  hiredAt: string | null;
+  serviceIds: string[];
+};
+
 export function isBarberStatusFilter(value: string): value is BarberStatusFilter {
   return (BARBER_STATUSES as readonly string[]).includes(value);
 }
@@ -249,4 +261,100 @@ export async function getAdminBarbers(input: GetBarbersInput) {
     services: services.filter((service) => service.is_active).map(({ id, name }) => ({ id, name })),
     items: filteredItems.map(({ scheduledToday, ...barber }) => barber),
   };
+}
+async function cleanupCreatedBarber(supabase: ReturnType<typeof createSupabaseAdminClient>, accountId: string, barberId?: string) {
+  if (barberId) {
+    await supabase.from("barber_services").delete().eq("barber_id", barberId);
+    await supabase.from("barbers").delete().eq("id", barberId);
+  }
+
+  await supabase.from("users").delete().eq("id", accountId);
+  await supabase.from("accounts").delete().eq("id", accountId);
+  await supabase.auth.admin.deleteUser(accountId);
+}
+
+export async function createAdminBarber(input: AdminBarberCreateInput) {
+  const supabase = createSupabaseAdminClient();
+  const email = input.email.trim().toLowerCase();
+  const phone = input.phone.trim();
+  const serviceIds = [...new Set(input.serviceIds)];
+
+  const { data: existingAccount, error: accountCheckError } = await supabase.from("accounts").select("id").eq("email", email).maybeSingle();
+  if (accountCheckError) throw accountCheckError;
+  if (existingAccount) return { conflict: "email" as const, barber: null };
+
+  if (phone) {
+    const { data: existingUser, error: phoneCheckError } = await supabase.from("users").select("id").eq("phone", phone).maybeSingle();
+    if (phoneCheckError) throw phoneCheckError;
+    if (existingUser) return { conflict: "phone" as const, barber: null };
+  }
+
+  if (serviceIds.length) {
+    const { data: services, error } = await supabase.from("services").select("id").in("id", serviceIds).eq("is_active", true);
+    if (error) throw error;
+    if ((services ?? []).length !== serviceIds.length) return { conflict: "service" as const, barber: null };
+  }
+
+  const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+    email,
+    password: input.password,
+    email_confirm: true,
+    user_metadata: {
+      full_name: input.displayName,
+      phone,
+      avatar_url: input.avatarUrl || null,
+    },
+  });
+
+  if (authError) {
+    const message = authError.message.toLowerCase();
+    if (message.includes("already") || message.includes("registered") || message.includes("exists")) {
+      return { conflict: "email" as const, barber: null };
+    }
+    throw authError;
+  }
+
+  if (!authData.user) throw new Error("Supabase did not return the created user");
+
+  const accountId = authData.user.id;
+  let barberId = "";
+
+  try {
+    const { data: account, error: roleError } = await supabase.from("accounts")
+      .update({ role: "barber", status: "active", updated_at: new Date().toISOString() })
+      .eq("id", accountId)
+      .select("id")
+      .maybeSingle();
+
+    if (roleError || !account) throw roleError ?? new Error("Barber account was not created");
+
+    const { data: barber, error: barberError } = await supabase.from("barbers").insert({
+      account_id: accountId,
+      display_name: input.displayName,
+      bio: input.bio || null,
+      phone: phone || null,
+      avatar_url: input.avatarUrl || null,
+      experience_years: input.experienceYears,
+      hired_at: input.hiredAt,
+      is_active: true,
+    }).select("id").single();
+
+    if (barberError) throw barberError;
+    barberId = barber.id;
+
+    if (serviceIds.length) {
+      const { error: servicesError } = await supabase.from("barber_services").insert(
+        serviceIds.map((serviceId) => ({ barber_id: barberId, service_id: serviceId, is_active: true })),
+      );
+      if (servicesError) throw servicesError;
+    }
+
+    const { error: userDeleteError } = await supabase.from("users").delete().eq("id", accountId);
+    if (userDeleteError) throw userDeleteError;
+
+    return { conflict: null, barber: { id: barberId, accountId } };
+  } catch (error) {
+    await cleanupCreatedBarber(supabase, accountId, barberId || undefined);
+    throw error;
+  }
 }

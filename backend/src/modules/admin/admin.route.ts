@@ -2,8 +2,8 @@ import { Router, type Request, type Response } from "express";
 import { createSupabaseAdminClient } from "../../lib/supabase";
 import { getRoleByUser, isAdmin } from "../../middlewares/auth.middleware";
 import { getRevenueData, isRevenuePeriod } from "./adminRevenue.service";
-import { getAdminUserDetails, getAdminUsers, getAdminUsersCsv, isUserGender, isUserSort, isUserStatusFilter, setAdminUserBlocked, updateAdminUser } from "./adminUsers.service";
-import { getAdminBarbers, isBarberStatusFilter } from "./adminBarbers.service";
+import { createAdminUser, getAdminUserDetails, getAdminUsers, getAdminUsersCsv, isUserGender, isUserSort, isUserStatusFilter, setAdminUserBlocked, updateAdminUser } from "./adminUsers.service";
+import { createAdminBarber, getAdminBarbers, isBarberStatusFilter } from "./adminBarbers.service";
 import { getAdminAppointments, isAppointmentStatusFilter, isValidAppointmentDate } from "./adminAppointments.service";
 import { getAdminPayments, isPaymentMethodFilter, isPaymentStatusFilter, isValidPaymentDate } from "./adminPayments.service";
 import { getAdminServices, isServiceStatusFilter } from "./adminServices.service";
@@ -11,6 +11,7 @@ import {getAdminSchedules, getScheduleWeekStart, isValidScheduleDate,} from "./a
 import { getAdminReports, isReportPeriod } from "./adminReports.service";
 import { getAdminDashboard, isDashboardPeriod } from "./adminDashboard.service";
 import { getAdminSettings, updateAdminSettings, type AdminSettingsInput } from "./adminSettings.service";
+
 
 const adminRouter = Router();
 
@@ -163,6 +164,53 @@ adminRouter.get("/users", async (request: Request, response: Response) => {
     });
   }
 });
+
+adminRouter.post("/users", async (request: Request, response: Response) => {
+  const fullName = typeof request.body.fullName === "string" ? request.body.fullName.trim() : "";
+  const email = typeof request.body.email === "string" ? request.body.email.trim().toLowerCase() : "";
+  const phone = typeof request.body.phone === "string" ? request.body.phone.trim().replace(/[\s.-]/g, "") : "";
+  const password = typeof request.body.password === "string" ? request.body.password : "";
+  const dateOfBirth = typeof request.body.dateOfBirth === "string" && request.body.dateOfBirth.trim() ? request.body.dateOfBirth.trim() : null;
+  const genderValue = typeof request.body.gender === "string" ? request.body.gender.trim().toLowerCase() : "";
+  const gender = genderValue ? (isUserGender(genderValue) ? genderValue : undefined) : null;
+  const notes = typeof request.body.notes === "string" ? request.body.notes.trim() : "";
+
+  if (fullName.length < 2 || fullName.length > 100) return response.status(400).json({ success: false, code: "invalid_full_name", message: "Full name must contain between 2 and 100 characters" });
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return response.status(400).json({ success: false, code: "invalid_email", message: "Email address is invalid" });
+  if (phone && !/^(?:\+84|0)\d{9}$/.test(phone)) return response.status(400).json({ success: false, code: "invalid_phone", message: "Phone number is invalid" });
+  if (password.length < 8) return response.status(400).json({ success: false, code: "weak_password", message: "Password must contain at least 8 characters" });
+  if (gender === undefined) return response.status(400).json({ success: false, code: "invalid_gender", message: "Gender is invalid" });
+
+  if (dateOfBirth && (!/^\d{4}-\d{2}-\d{2}$/.test(dateOfBirth) || Number.isNaN(Date.parse(dateOfBirth)) || new Date(`${dateOfBirth}T00:00:00Z`) > new Date())) {
+    return response.status(400).json({ success: false, code: "invalid_date_of_birth", message: "Date of birth is invalid" });
+  }
+
+  if (notes.length > 2000) return response.status(400).json({ success: false, code: "notes_too_long", message: "Notes must not exceed 2000 characters" });
+
+  try {
+    const result = await createAdminUser({ fullName, email, phone, password, dateOfBirth, gender, notes });
+
+    if (result.conflict === "email") return response.status(409).json({ success: false, code: "email_already_exists", message: "Email address is already registered" });
+    if (result.conflict === "phone") return response.status(409).json({ success: false, code: "phone_already_exists", message: "Phone number is already in use" });
+    if (!result.user) return response.status(500).json({ success: false, code: "admin_user_create_failed", message: "Unable to create user" });
+
+    return response.status(201).json({
+      success: true,
+      code: "admin_user_created",
+      message: "User created successfully",
+      data: result.user,
+    });
+  } catch (error) {
+    console.error("Create administrator user error:", error);
+
+    if (typeof error === "object" && error && "code" in error && error.code === "23505") {
+      return response.status(409).json({ success: false, code: "duplicate_user_data", message: "Email or phone number is already in use" });
+    }
+
+    return response.status(500).json({ success: false, code: "admin_user_create_failed", message: "Unable to create user" });
+  }
+});
+
 adminRouter.get("/users/export", async (request: Request, response: Response) => {
   const query = typeof request.query.query === "string" ? request.query.query.trim() : "";
   const status = typeof request.query.status === "string" ? request.query.status.toLowerCase() : "all";
@@ -274,6 +322,62 @@ adminRouter.get("/barbers", async (request: Request, response: Response) => {
       success: false,
       code: "admin_barbers_query_failed",
       message: "Unable to load barbers",
+    });
+  }
+});
+
+adminRouter.post("/barbers", async (request: Request, response: Response) => {
+  const displayName = typeof request.body.displayName === "string" ? request.body.displayName.trim() : "";
+  const email = typeof request.body.email === "string" ? request.body.email.trim().toLowerCase() : "";
+  const phone = typeof request.body.phone === "string" ? request.body.phone.trim().replace(/[\s.-]/g, "") : "";
+  const password = typeof request.body.password === "string" ? request.body.password : "";
+  const bio = typeof request.body.bio === "string" ? request.body.bio.trim() : "";
+  const avatarUrl = typeof request.body.avatarUrl === "string" ? request.body.avatarUrl.trim() : "";
+  const experienceYears = Number(request.body.experienceYears);
+  const hiredAt = typeof request.body.hiredAt === "string" && request.body.hiredAt.trim() ? request.body.hiredAt.trim() : null;
+  const rawServiceIds: unknown[] = Array.isArray(request.body.serviceIds) ? request.body.serviceIds : [];
+  const serviceIds: string[] = rawServiceIds.filter((value): value is string => typeof value === "string").map((value) => value.trim());
+
+  if (displayName.length < 2 || displayName.length > 120) return response.status(400).json({ success: false, code: "invalid_display_name", message: "Display name must contain between 2 and 120 characters" });
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return response.status(400).json({ success: false, code: "invalid_email", message: "Email address is invalid" });
+  if (phone && !/^(?:\+84|0)\d{9}$/.test(phone)) return response.status(400).json({ success: false, code: "invalid_phone", message: "Phone number is invalid" });
+  if (password.length < 8) return response.status(400).json({ success: false, code: "weak_password", message: "Password must contain at least 8 characters" });
+  if (!Number.isInteger(experienceYears) || experienceYears < 0) return response.status(400).json({ success: false, code: "invalid_experience", message: "Experience years must be a non-negative integer" });
+  if (bio.length > 2000) return response.status(400).json({ success: false, code: "bio_too_long", message: "Bio must not exceed 2000 characters" });
+  if (serviceIds.length !== rawServiceIds.length || serviceIds.some((id) => !UUID_PATTERN.test(id))) return response.status(400).json({ success: false, code: "invalid_services", message: "One or more selected services are invalid" });
+
+  if (avatarUrl) {
+    try {
+      new URL(avatarUrl);
+    } catch {
+      return response.status(400).json({ success: false, code: "invalid_avatar_url", message: "Avatar URL is invalid" });
+    }
+  }
+
+  if (hiredAt && (!/^\d{4}-\d{2}-\d{2}$/.test(hiredAt) || Number.isNaN(Date.parse(hiredAt)) || new Date(`${hiredAt}T00:00:00Z`) > new Date())) {
+    return response.status(400).json({ success: false, code: "invalid_hired_at", message: "Hired date is invalid" });
+  }
+
+  try {
+    const result = await createAdminBarber({ displayName, email, phone, password, bio, avatarUrl, experienceYears, hiredAt, serviceIds });
+
+    if (result.conflict === "email") return response.status(409).json({ success: false, code: "email_already_exists", message: "Email address is already registered" });
+    if (result.conflict === "phone") return response.status(409).json({ success: false, code: "phone_already_exists", message: "Phone number is already in use" });
+    if (result.conflict === "service") return response.status(400).json({ success: false, code: "invalid_services", message: "One or more selected services are unavailable" });
+    if (!result.barber) return response.status(500).json({ success: false, code: "admin_barber_create_failed", message: "Unable to create barber" });
+
+    return response.status(201).json({
+      success: true,
+      code: "admin_barber_created",
+      message: "Barber created successfully",
+      data: result.barber,
+    });
+  } catch (error) {
+    console.error("Create administrator barber error:", error);
+    return response.status(500).json({
+      success: false,
+      code: "admin_barber_create_failed",
+      message: error instanceof Error && process.env.NODE_ENV === "development" ? error.message : "Unable to create barber",
     });
   }
 });
